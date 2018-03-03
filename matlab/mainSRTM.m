@@ -16,9 +16,11 @@ l = [37 10 38 00  138 15  139 00]; % Kashiwazaki, Japan
 % l = [18 30 21 00 -157 00 -154 00]; % Mauna Loa, Hawai
 % l = [38 40 38 60   20 40   20 60]; % test small Kefalonia, Greece
 % l = [20 00 21 00 -156 00 -155 00]; % test small Mauna Loa, Hawai
+l = [40 36 40 46 23 10 23 24]; % Volvi, Greece
 
 % choose output directory
-outdir = '.';
+%outdir = '.';
+outdir = '/home/filippo/Data/Filippo/aeolus/volvi/topography_files';
 
 % characteristic length over which details of the coastline are removed
 % put H<=0 if you want no smoothing (this is very expensive because many
