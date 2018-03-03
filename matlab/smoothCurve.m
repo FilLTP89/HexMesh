@@ -14,10 +14,12 @@ if ~isempty(c)
         c.Ocean{i1} = smoothSingleCurve(c.Ocean{i1},h);
     end
     c.Ocean = c.Ocean(~cellfun('isempty',c.Ocean));
+    if ~isempty(c.Land)
     for i1 = 1:length(c.Land)
         c.Land{i1} = smoothSingleCurve(c.Land{i1},h);
     end
     c.Land = c.Land(~cellfun('isempty',c.Land));
+    end
 end
 
 % FUNCTION SMOOTHSINGLECURVE
