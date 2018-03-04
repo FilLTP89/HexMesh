@@ -25,7 +25,7 @@ outdir = '/home/filippo/Data/Filippo/aeolus/volvi/topography_files';
 % characteristic length over which details of the coastline are removed
 % put H<=0 if you want no smoothing (this is very expensive because many
 % small elements will be created)
-H = .01; % in units of lon/lat
+H = 0.1; % in units of lon/lat
 
 % minimum water depth
 minwater = -10;
@@ -62,7 +62,7 @@ topographySRTM(latbnds, lonbnds, outdir, 'interp', 'merge', ...
                     'crop', [latcrop loncrop]);
 topo = topographySRTM(latbnds, lonbnds, outdir, 'interp', 'merge', ...
                      'crop', [latcrop loncrop]);
-                 
+
 nmax = 1e4;
 if length(topo.lon)>nmax || length(topo.lat)>nmax
     error('the STL file will be too large')
@@ -79,6 +79,7 @@ bathy = bathymetrySRTM(latbnds, lonbnds, outdir, 'interp', 'merge', ...
 x = x(:); y = y(:);
 water = struct('Ocean',{[]},'River',{[]},'Lake',{[]}, 'Land',{[]},'Isle',{[]});
 for i1 = 1:length(x)
+    
     wat = swbd_shore( [ y(i1) y(i1)+1 x(i1) x(i1)+1 ], outdir );
     if isempty(wat)
         ocean = [ y(i1) y(i1) y(i1)+1 y(i1)+1 y(i1); 
@@ -86,10 +87,10 @@ for i1 = 1:length(x)
         water.Ocean = [water.Ocean; {ocean}];
     else
         water.Ocean = [water.Ocean; wat.Ocean];
-%        water.River = [water.River; wat.River];
-%        water.Lake = [water.Lake; wat.Lake];
+        water.River = [water.River; wat.River];
+        water.Lake = [water.Lake; wat.Lake];
         water.Land = [water.Land; wat.Land];
-%        water.Isle = [water.Isle; wat.Isle];
+        water.Isle = [water.Isle; wat.Isle];
     end
 end
 
@@ -134,6 +135,7 @@ bathy = triangulation( Elts, Nodes );
 figure; trisurf( bathy );
 
 % integrate topography with coastline
+water.Ocean=[];
 topo = altimetryCoastline( topo, water );
 [ dist, distc ] = distanceCoastline( topo, water );
 z = topo.Points(:,3);
@@ -148,7 +150,7 @@ z(ind) = 0;
 X = [ topo.Points(:,1:2) z ];
 T = cleanFlatT( topo.ConnectivityList, X, 1e-10 );
 topo = triangulation( T, X(:,1), X(:,2), X(:,3) );
-%figure; trisurf( topo ); shading flat;
+figure; trisurf( topo ); shading flat;
 
 % return
 
@@ -156,13 +158,13 @@ topo = triangulation( T, X(:,1), X(:,2), X(:,3) );
 if ~isempty(topo)
     [xtopo,ytopo] = lonlat2m(topo.Points(:,1),topo.Points(:,2));
     write_stl( fullfile(outdir,'topo.stl'), ...
-        [xtopo ytopo topo.Points(:,3)], topo.ConnectivityList');
+                 [xtopo ytopo topo.Points(:,3)], topo.ConnectivityList');
 end
-
-% write bathymetry STL file
-if ~isempty(bathy)
-    [xbathy,ybathy] = lonlat2m(bathy.Points(:,1),bathy.Points(:,2));
-    write_stl( fullfile(outdir,'bathy.stl'), ...
-                 [xbathy ybathy bathy.Points(:,3)], bathy.ConnectivityList');
-end            
+% 
+% % write bathymetry STL file
+% if ~isempty(bathy)
+%     [xbathy,ybathy] = lonlat2m(bathy.Points(:,1),bathy.Points(:,2));
+%     write_stl( fullfile(outdir,'bathy.stl'), ...
+%                  [xbathy ybathy bathy.Points(:,3)], bathy.ConnectivityList');
+% end            
              
