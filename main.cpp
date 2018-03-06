@@ -88,8 +88,8 @@ int main(int argc, char** argv) {
 		// Note that here we use a gts file.
 		// There is a tool called stl2gts that convert STL files to GTS.
 		// It is installed together with the gts library.
-		GetMeshFromSurface(&mesh, "./input/topo_Pipo_small.gts", coords);
-		GetInterceptedElements(&mesh, coords, element_ids, "./input/bathy_Pipo_small.gts");
+		GetMeshFromSurface(&mesh, "./input/topo.gts", coords);
+		//GetInterceptedElements(&mesh, coords, element_ids, "./input/bathy_Pipo_small.gts");
 
 		printf(" Elements intercepted: %lld\n\n", element_ids.size());
 
@@ -101,22 +101,22 @@ int main(int argc, char** argv) {
 
 		//printf(" Applying material \n\n");
 		element_ids.clear();
-		Apply_material(&mesh, coords, element_ids, "./input/bathy_Pipo_small.gts");
+		//Apply_material(&mesh, coords, element_ids, "./input/bathy_Pipo_small.gts");
 
         //	printf(" Project nodes to the bathymetry\n\n");
 	//	Move_nodes(&mesh,"./input/bathy_Pipo_small.gts", coords,element_ids);
 
-                MovingNodes(&mesh,coords, nodes_b_mat,"./input/bathy_Pipo_small.gts");
+          //      MovingNodes(&mesh,coords, nodes_b_mat,"./input/bathy_Pipo_small.gts");
                         
-                MeshOpt(&mesh,coords,nodes_b_mat);
+          //      MeshOpt(&mesh,coords,nodes_b_mat);
                 
 	}
 
 	//printf(" Writing output files \n\n");
-	//hexa_mesh_write_vtk(&mesh, "mesh", &coords);
+	hexa_mesh_write_vtk(&mesh, "mesh", &coords);
         
-	//hexa_mesh_write_msh(&mesh, "mesh", &coords);
-	//hexa_mesh_write_h5(&mesh,"mesh", coords);
+	hexa_mesh_write_msh(&mesh, "mesh", &coords);
+	hexa_mesh_write_h5(&mesh,"mesh", coords);
 
 	printf(" Cleaning variables \n\n");
 
