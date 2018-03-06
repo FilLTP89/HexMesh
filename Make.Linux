@@ -21,15 +21,17 @@ objects		:= $(patsubst %.cpp, %.o, $(srcfiles))
 #################################################################################
 
 GTS_DIR :=/usr
-SC_DIR  := /usr/local/lib/sc
+SC_DIR  := /home/filippo/Data/Filippo/libsc/local
+H5_DIR  := /usr/local
 GLIB_INCLUDE = -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include
 
 MPI_LP :=/usr
 
 CXX       = mpicxx -O1 -g
-LDFLAGS   = -L$(GTS_DIR)/lib -lgts -L$(SC_DIR)/lib -lsc -lm -lglib-2.0
-CXX_FLAGS = -I$(GTS_DIR)/include -I$(SC_DIR)/include $(GLIB_INCLUDE) -Iinclude
-
+#LDFLAGS   = -L$(GTS_DIR)/lib -lgts -L$(SC_DIR)/lib -lsc -lm -lglib-2.0
+#CXX_FLAGS = -I$(GTS_DIR)/include -I$(SC_DIR)/include $(GLIB_INCLUDE) -Iinclude
+LDFLAGS   = -L$(GTS_DIR)/lib -lgts -L$(SC_DIR)/lib -lsc -lm -lglib-2.0 -lmesquite -L/usr/local/lib /usr/local/lib/libhdf5_hl_cpp.a /usr/local/lib/libhdf5_cpp.a /usr/local/lib/libhdf5_hl.a /usr/local/lib/libhdf5.a -lsz -lz -ldl -lm -Wl,-rpath -Wl,/usr/local/lib
+CXX_FLAGS = -I$(GTS_DIR)/include -I$(SC_DIR)/include $(GLIB_INCLUDE) -I/usr/local/include -Iinclude
 
 ## Target: all
 all: hexmesh
