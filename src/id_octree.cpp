@@ -2080,7 +2080,7 @@ void CheckOctreeTemplate(hexa_tree_t* mesh, const std::vector<double>& coords, s
 				GtsBBox *b = GTS_BBOX(list->data);
 				point[edge] = SegmentTriangleIntersection(segments[edge], GTS_TRIANGLE(b->bounded));
 				if (point[edge]) {
-					elem->edge[edge].ref = true;
+					//elem->edge[edge].ref = true;
 					edge_add(elem->edge[edge].id, hash_edge_ref );
 					elem->pad = -1;
 					ed_cont++;
@@ -2097,6 +2097,13 @@ void CheckOctreeTemplate(hexa_tree_t* mesh, const std::vector<double>& coords, s
 			elem->pad = 0;
 			for (int edge = 0; edge < 12; ++edge) {
 				elem->edge[edge].ref = false;
+			}
+		}
+
+		//Gambi
+		if(elem->id==0){
+			for (int edge = 0; edge < 12; edge++) {
+				elem->edge[edge].ref = true;
 			}
 		}
 
@@ -2136,7 +2143,7 @@ void CheckOctreeTemplate(hexa_tree_t* mesh, const std::vector<double>& coords, s
 #endif  
 
 
-	for (int i = 0; i < 200; i++){
+	for (int i = 0; i < 20; i++){
 #ifdef HEXA_DEBUG_
 		if(0){
 			fprintf(mesh->fdbg ,"passo: %d\n",i);

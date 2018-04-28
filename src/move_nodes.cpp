@@ -169,7 +169,6 @@ void Move_nodes(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>
 
 
 // Change the node positions to fit the surface.
-
 void Move_nodes(hexa_tree_t* mesh, const char* surface_bathy, vector<double>& coords, std::vector<int>& element_ids) {
 
     GtsPoint *p;

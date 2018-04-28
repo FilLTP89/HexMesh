@@ -45,12 +45,12 @@ int main(int argc, char** argv) {
 
 	std::vector<double> coords;
 	std::vector<int> element_ids;
-        std::vector<int> nodes_b_mat;
+	std::vector<int> nodes_b_mat;
 
 	int l = atoi(argv[1]);
 
-        //int l = 5;
-        
+	//int l = 5;
+
 	hexa_init(argc, argv, &mesh);
 
 	hexa_tree_init(&mesh, l);
@@ -70,11 +70,11 @@ int main(int argc, char** argv) {
 
 		printf(" Elements intercepted: %lld\n\n", element_ids.size());
 
-		//printf(" Check and propagate 27-tree templates\n\n");
-		//CheckOctreeTemplate(&mesh, coords, element_ids, true);
+		printf(" Check and propagate 27-tree templates\n\n");
+		CheckOctreeTemplate(&mesh, coords, element_ids, true);
 
-		//printf(" Apply 27-tree templates\n\n");
-		//ApplyOctreeTemplate(&mesh, coords, element_ids);
+		printf(" Apply 27-tree templates\n\n");
+		ApplyOctreeTemplate(&mesh, coords, element_ids);
 
 		printf(" Applying material \n\n");
 		element_ids.clear();
@@ -92,35 +92,37 @@ int main(int argc, char** argv) {
 		GetInterceptedElements(&mesh, coords, element_ids, "./input/bathy_Pipo_small.gts");
 
 		printf(" Elements intercepted: %lld\n\n", element_ids.size());
-
+		element_ids.clear();
+		element_ids.push_back(0);
 		printf(" Check and propagate 27-tree templates\n\n");
-		//CheckOctreeTemplate(&mesh, coords, element_ids, true);
+		CheckOctreeTemplate(&mesh, coords, element_ids, true);
 
-		//printf(" Apply 27-tree templates\n\n");
-                //ApplyOctreeTemplate(&mesh, coords, element_ids);
+		printf(" Apply 27-tree templates\n\n");
+		ApplyOctreeTemplate(&mesh, coords, element_ids);
 
 		//printf(" Applying material \n\n");
-		element_ids.clear();
-		Apply_material(&mesh, coords, element_ids, "./input/bathy_Pipo_small.gts");
+		//element_ids.clear();
+		//Apply_material(&mesh, coords, element_ids, "./input/bathy_Pipo_small.gts");
 
-        //	printf(" Project nodes to the bathymetry\n\n");
-	//	Move_nodes(&mesh,"./input/bathy_Pipo_small.gts", coords,element_ids);
+		//	printf(" Project nodes to the bathymetry\n\n");
+		//	Move_nodes(&mesh,"./input/bathy_Pipo_small.gts", coords,element_ids);
 
-                MovingNodes(&mesh,coords, nodes_b_mat,"./input/bathy_Pipo_small.gts");
-                        
-                MeshOpt(&mesh,coords,nodes_b_mat);
-                
+		//MovingNodes(&mesh,coords, nodes_b_mat,"./input/bathy_Pipo_small.gts");
+
+		//MeshOpt(&mesh,coords,nodes_b_mat);
+
 	}
 
-	//printf(" Writing output files \n\n");
-	//hexa_mesh_write_vtk(&mesh, "mesh", &coords);
-        
+	printf(" Writing output files \n\n");
+	hexa_mesh_write_vtk(&mesh, "mesh", &coords);
+	hexa_mesh_write_vtk(&mesh, "test",NULL);
+
 	//hexa_mesh_write_msh(&mesh, "mesh", &coords);
 	//hexa_mesh_write_h5(&mesh,"mesh", coords);
 
 	printf(" Cleaning variables \n\n");
 
-        //hexa_mesh_destroy(&mesh);
+	//hexa_mesh_destroy(&mesh);
 	hexa_tree_destroy(&mesh);
 	hexa_finalize(&mesh);
 
