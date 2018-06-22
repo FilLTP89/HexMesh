@@ -1,0 +1,9 @@
+#! /bin/sh
+module purge
+module load hdf5/1.8.20 
+module load intel-compilers/17.0.4
+module load blas/3.8.0
+module load intel-mpi/2017.0.3
+
+make -f Make.Fusion clean
+make -f Make.Fusion

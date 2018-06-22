@@ -41,12 +41,11 @@
 
 #include "hexa.h"
 
-using namespace Mesquite;
-
+using namespace MESQUITE_NS;
 
 void MeshOpt(hexa_tree_t* mesh, std::vector<double> coords, std::vector<int> material_fixed_nodes)
 {
-    Mesquite::MsqPrintError err(std::cout);
+    MsqPrintError err(std::cout);
     
     int nvertices = mesh->local_n_nodes;
     int nelem     = mesh->local_n_elements;
@@ -112,12 +111,12 @@ void MeshOpt(hexa_tree_t* mesh, std::vector<double> coords, std::vector<int> mat
     }
     
     
-    Mesquite::MeshImpl mesq_mesh(nvertices,nelem,Mesquite::HEXAHEDRON, &fixed_nodes[0], &coords[0], &conn[0]);
+    MeshImpl mesq_mesh(nvertices,nelem,HEXAHEDRON, &fixed_nodes[0], &coords[0], &conn[0]);
     
     int default_gid = -1;
     int default_pid = 0;
-    mesq_mesh.tag_create("GLOBAL_ID"   ,Mesquite::Mesh::HANDLE,1,&default_gid, err);
-    mesq_mesh.tag_create("PROCESSOR_ID",Mesquite::Mesh::INT   ,1,&default_pid, err);
+    mesq_mesh.tag_create("GLOBAL_ID"   ,Mesh::HANDLE,1,&default_gid, err);
+    mesq_mesh.tag_create("PROCESSOR_ID",Mesh::INT   ,1,&default_pid, err);
     
     TagHandle tag_processor_id = mesq_mesh.tag_get("PROCESSOR_ID", err);
     TagHandle tag_global_id    = mesq_mesh.tag_get("GLOBAL_ID", err);
@@ -143,7 +142,7 @@ void MeshOpt(hexa_tree_t* mesh, std::vector<double> coords, std::vector<int> mat
     parallel_mesh.set_parallel_helper(&helper);
 */
     // do Laplacian smooth 
-    Mesquite::LaplaceWrapper optimizer;
+    LaplaceWrapper optimizer;
     optimizer.set_vertex_movement_limit_factor(1.e-6);
     optimizer.set_iteration_limit(100);
     optimizer.enable_culling(false);

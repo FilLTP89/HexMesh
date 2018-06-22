@@ -57,66 +57,40 @@ int main(int argc, char** argv) {
 	hexa_tree_cube(&mesh);
 
 	//hexa_debug_face_hanging(&mesh);
-	//AddPMLElements(&mesh);
+	AddPMLElements(&mesh);
 
 	hexa_mesh(&mesh);
 
-	if(0){
-		// Note that here we use a gts file.
-		// There is a tool called stl2gts that convert STL files to GTS.
-		// It is installed together with the gts library.
-		GetMeshFromSurface(&mesh, "./input/topo_Arg_small.gts", coords);
-		GetInterceptedElements(&mesh, coords, element_ids, "./input/bathy_Arg_small.gts");
+    // Note that here we use a gts file.
+    // There is a tool called stl2gts that convert STL files to GTS.
+    // It is installed together with the gts library.
+    // [VOLVI]
+    //GetMeshFromSurface(&mesh, "./volvi/topo.gts", coords);
+    // [KKNPP]
+    GetMeshFromSurface(&mesh, "./kknpp-new/topo_kknpp_small.gts", coords);
+    //[MOD] modify here to add intercepted surface
+    // [VOLVI]
+    //GetInterceptedElements(&mesh, coords, element_ids, "./volvi/geo_ef.gts");
+    // [KKNPP]
+    GetInterceptedElements(&mesh, coords, element_ids, "./kknpp-new/bathy_kknpp_small.gts");
+    printf(" Elements intercepted: %lld\n\n", element_ids.size());
+    printf(" Check and propagate 27-tree templates\n\n");
+    //CheckOctreeTemplate(&mesh, coords, element_ids, true);
+    printf(" Applying material \n\n");
+    //[MOD] intercept surface
+    //element_ids.clear();
+    // [VOLVI]
+    //Apply_material(&mesh, coords, element_ids, "./volvi/geo_ef.gts");
+    // [KKNPP]
+    Apply_material(&mesh, coords, element_ids, "./kknpp-new/bathy_kknpp_small.gts");
+    //MovingNodes(&mesh,coords, nodes_b_mat,"./volvi/geo_flat.gts");
+    //MeshOpt(&mesh,coords,nodes_b_mat);
 
-		printf(" Elements intercepted: %lld\n\n", element_ids.size());
-
-		//printf(" Check and propagate 27-tree templates\n\n");
-		//CheckOctreeTemplate(&mesh, coords, element_ids, true);
-
-		//printf(" Apply 27-tree templates\n\n");
-		//ApplyOctreeTemplate(&mesh, coords, element_ids);
-
-		printf(" Applying material \n\n");
-		element_ids.clear();
-		Apply_material(&mesh, coords, element_ids, "./input/bathy_Arg_small.gts");
-
-		//printf(" Project nodes to the bathymetry\n\n");
-		//Move_nodes(&mesh,"./input/bathy_Arg_small.gts", coords,element_ids);
-	}
-
-	if(1){
-		// Note that here we use a gts file.
-		// There is a tool called stl2gts that convert STL files to GTS.
-		// It is installed together with the gts library.
-		GetMeshFromSurface(&mesh, "./input/topo.gts", coords);
-		//GetInterceptedElements(&mesh, coords, element_ids, "./input/bathy_Pipo_small.gts");
-
-		printf(" Elements intercepted: %lld\n\n", element_ids.size());
-
-		printf(" Check and propagate 27-tree templates\n\n");
-		//CheckOctreeTemplate(&mesh, coords, element_ids, true);
-
-		//printf(" Apply 27-tree templates\n\n");
-                //ApplyOctreeTemplate(&mesh, coords, element_ids);
-
-		//printf(" Applying material \n\n");
-		element_ids.clear();
-		//Apply_material(&mesh, coords, element_ids, "./input/bathy_Pipo_small.gts");
-
-        //	printf(" Project nodes to the bathymetry\n\n");
-	//	Move_nodes(&mesh,"./input/bathy_Pipo_small.gts", coords,element_ids);
-
-          //      MovingNodes(&mesh,coords, nodes_b_mat,"./input/bathy_Pipo_small.gts");
-                        
-          //      MeshOpt(&mesh,coords,nodes_b_mat);
-                
-	}
-
-	//printf(" Writing output files \n\n");
-	hexa_mesh_write_vtk(&mesh, "mesh", &coords);
+	printf(" Writing output files \n\n");
+	hexa_mesh_write_vtk(&mesh, "kknpp_msh_small_rf6", &coords);
         
-	hexa_mesh_write_msh(&mesh, "mesh", &coords);
-	hexa_mesh_write_h5(&mesh,"mesh", coords);
+	hexa_mesh_write_msh(&mesh, "kknpp_msh_small_rf6", &coords);
+	hexa_mesh_write_h5(&mesh,"kknpp_msh_small_rf6", coords);
 
 	printf(" Cleaning variables \n\n");
 

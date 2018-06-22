@@ -12,7 +12,6 @@ using namespace std;
 
 #include "hexa.h"
 #include "refinement.h"
-
 /**
  * bbox_is_stabbed:
  * @bb: a #GtsBBox.
@@ -93,7 +92,6 @@ bool is_point_over_surface(GtsPoint * p, GNode * tree) {
 
 }
 
-
 //Aplly the material properties to the elements
 
 void Apply_material(hexa_tree_t *mesh, std::vector<double>& coords, std::vector<int>& element_ids, const char* surface_bathy) {
@@ -114,15 +112,82 @@ void Apply_material(hexa_tree_t *mesh, std::vector<double>& coords, std::vector<
         printf(" x ranges from %f to %f\n", bbox->x1, bbox->x2);
         printf(" y ranges from %f to %f\n", bbox->y1, bbox->y2);
         printf(" z ranges from %f to %f\n", bbox->z1, bbox->z2);
+        printf("tot materials: %d\n",mesh->total_n_mat);
     }
     int mat1 = 0;
     int mat2 = 0;
+    int cdoub=mesh->total_n_mat;
+    int idover[mesh->total_n_mat];
+    fill_n(idover, mesh->total_n_mat, -1); //all elements are under the bathymetry
     //GtsPoint * p = gts_point_new(gts_point_class(),coords[n_id], coords[n_id + 1],coords[n_id + 2]);
     //GtsPoint * p = gts_point_new(gts_point_class(), 0, 0, 0);
 
     for (int iel = 0; iel < elements->elem_count; ++iel) {
         octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, iel);
-        elem->n_mat = -1;
+        //elem->n_mat = -1;
+        GtsPoint * point;
+
+        //getting the baricenter of the upper surface;
+        //find the centroid of the upper surface
+        double cord_in_x[8], cord_in_y[8], cord_in_z[8];
+        //add the nodes in the coord vector
+        for (int ii = 0; ii < 8; ii++) {
+            cord_in_x[ii] = coords[3 * elem->nodes[ii].id];
+            cord_in_y[ii] = coords[3 * elem->nodes[ii].id + 1];
+            cord_in_z[ii] = coords[3 * elem->nodes[ii].id + 2];
+        }
+
+        double cord_in_ref[3];
+        cord_in_ref[0] = 0;
+        cord_in_ref[1] = 0;
+        cord_in_ref[2] = -1;
+        point = LinearMapHex(cord_in_ref, cord_in_x, cord_in_y, cord_in_z);
+        
+        over = is_point_over_surface(point, bbt_bathymetry);
+        if (!over){
+            if (idover[elem->n_mat]==-1){
+                idover[elem->n_mat]=0;
+            }else if(idover[elem->n_mat]==1){
+                cdoub = cdoub+1;
+                idover[elem->n_mat]=2;
+            }
+        }else{
+            if (idover[elem->n_mat]==-1){
+                idover[elem->n_mat]=1;
+            }else if(idover[elem->n_mat]==0){
+                cdoub=cdoub+1;
+                idover[elem->n_mat]=2;
+            }
+        }
+    }
+    
+    int offsetdoub[mesh->total_n_mat];
+    int coff = -1;
+
+    for (int iel = 1; iel < mesh->total_n_mat+1; ++iel) {
+        offsetdoub[iel]=coff+1;
+        if(idover[iel]==2){
+            coff=coff+1;
+        }
+    }
+    if (mesh->mpi_rank == 0) {
+        printf("new number of materials:%d\n",cdoub);
+        printf("offset values:%d,%d,%d,%d,%d,%d,%d,",offsetdoub[1],offsetdoub[2],offsetdoub[3], 
+           offsetdoub[4],offsetdoub[5],offsetdoub[6],offsetdoub[7]);
+        printf("%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+           offsetdoub[8],offsetdoub[9],offsetdoub[10],offsetdoub[11],
+           offsetdoub[12],offsetdoub[13],offsetdoub[14],offsetdoub[15],
+           offsetdoub[16],offsetdoub[17]);
+        printf("idover values:%d,%d,%d,%d,%d,%d,%d,",idover[1],idover[2],idover[3], 
+           idover[4],idover[5],idover[6],idover[7]);
+        printf("%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+           idover[8],idover[9],idover[10],idover[11],
+           idover[12],idover[13],idover[14],idover[15],
+           idover[16],idover[17]);
+    }
+    for (int iel = 0; iel < elements->elem_count; ++iel) {
+        octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, iel);
+        //elem->n_mat = -1;
         GtsPoint * point;
         /*
                         // Getting baricenter
@@ -151,14 +216,14 @@ void Apply_material(hexa_tree_t *mesh, std::vector<double>& coords, std::vector<
         cord_in_ref[1] = 0;
         cord_in_ref[2] = -1;
         point = LinearMapHex(cord_in_ref, cord_in_x, cord_in_y, cord_in_z);
-
+        
         over = is_point_over_surface(point, bbt_bathymetry);
 
         if (!over) {
-            elem->n_mat = 0;
+            elem->n_mat=elem->n_mat+offsetdoub[elem->n_mat]-1;
             mat1++;
         } else {
-            elem->n_mat = 1;
+            elem->n_mat=elem->n_mat+offsetdoub[elem->n_mat];
             element_ids.push_back(iel);
             mat2++;
         }
