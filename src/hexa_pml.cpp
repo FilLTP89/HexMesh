@@ -1351,14 +1351,14 @@ void AddPMLElements(hexa_tree_t* mesh) {
 }
 
 
-void ExtrudePMLElements(hexa_tree_t* mesh, std::vector<double>& coords) {
+void ExtrudePMLElements(hexa_tree_t* mesh) {
 
 	double X_pml = 50000;
 	double Y_pml = 50000;
 	double Z_pml = 50000;
-	int layers_x = 5;
-	int layers_y = 5;
-	int layers_z = 5;
+	int layers_x = 1;
+	int layers_y = 1;
+	int layers_z = 1;
 
 	sc_array_t *elements = &mesh->elements;
 	int nelem = elements->elem_count;

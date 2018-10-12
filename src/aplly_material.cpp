@@ -220,13 +220,14 @@ void Apply_material(hexa_tree_t *mesh, std::vector<double>& coords, std::vector<
         over = is_point_over_surface(point, bbt_bathymetry);
 
         if (!over) {
-            elem->n_mat=elem->n_mat+offsetdoub[elem->n_mat]-1;
+            elem->n_mat=elem->n_mat+offsetdoub[elem->n_mat]-1+1;
             mat1++;
         } else {
-            elem->n_mat=elem->n_mat+offsetdoub[elem->n_mat];
+            elem->n_mat=elem->n_mat+offsetdoub[elem->n_mat]+1;
             element_ids.push_back(iel);
             mat2++;
         }
+        elem->n_mat=elem->n_mat-1;
 
         gts_object_destroy(GTS_OBJECT(point));
     }

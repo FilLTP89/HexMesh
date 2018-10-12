@@ -71,7 +71,8 @@ void GetMeshFromSurface(hexa_tree_t* tree, const char* surface_topo, vector<doub
 	}
 
 	// Change the box size to cut the external elements
-	double factor = 0.05;
+    double factor = 0.05; 
+    //
 	double x_factor = (tree->gdata.bbox->x2 - tree->gdata.bbox->x1)*factor;
 	double y_factor = (tree->gdata.bbox->y2 - tree->gdata.bbox->y1)*factor;
 
