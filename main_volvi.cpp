@@ -95,8 +95,8 @@ int main(int argc, char** argv) {
 	////hexa_mesh_write_msh(&mesh, "kknpp_msh_small_rf6", &coords);
 	//hexa_mesh_write_h5(&mesh,"kknpp_msh_small_rf6", coords);
     // [VOLVI]
-	//hexa_mesh_write_vtk(&mesh, "volvi_msh_small_rf6", &coords);
-	//hexa_mesh_write_msh(&mesh, "volvi_msh_small_rf6", &coords);
+	hexa_mesh_write_vtk(&mesh, "volvi_msh_small_rf6", &coords);
+	hexa_mesh_write_msh(&mesh, "volvi_msh_small_rf6", &coords);
 	hexa_mesh_write_h5(&mesh,"volvi_msh_small_rf6", coords);
 
 	printf(" Cleaning variables \n\n");

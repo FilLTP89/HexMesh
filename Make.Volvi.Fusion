@@ -1,0 +1,64 @@
+## -*- Makefile -*-
+##
+## User: camata
+## Time: Jul 6, 2015 2:23:03 PM
+## Makefile created by Oracle Solaris Studio.
+##
+## This file is generated automatically.
+##
+
+###############################################################################
+# File management.  This is where the source, header, and object files are
+# defined
+
+#
+# source files
+srcfiles 	:= $(wildcard src/*.cpp) main_volvi.cpp
+
+#
+# object files
+objects		:= $(patsubst %.cpp, %.o, $(srcfiles))
+#################################################################################
+
+GTS_DIR := /gpfs/workdir/gattif/gts-0.7.6/local
+SC_DIR  := /gpfs/workdir/gattif/libsc/local
+GLIB_INCLUDE = -I/usr/include/glib-2.0 -I/usr/lib64/glib-2.0/include 
+MSQ_INCLUDE = -I/gpfs/home/gattif/LOCAL/mesquite/include  
+H5_FLAG = -L/gpfs/opt/libraries/hdf5/1.8.20/lib /gpfs/opt/libraries/hdf5/1.8.20/lib/libhdf5_hl_cpp.a /gpfs/opt/libraries/hdf5/1.8.20/lib/libhdf5_cpp.a /gpfs/opt/libraries/hdf5/1.8.20/lib/libhdf5_hl.a /gpfs/opt/libraries/hdf5/1.8.20/lib/libhdf5.a -lz -ldl -lm -Wl,-rpath -Wl,/gpfs/opt/libraries/hdf5/1.8.20/lib  
+
+MPI_LP :=/usr
+
+CXX       = mpiicc -O1 -g
+#LDFLAGS   = -L$(GTS_DIR)/lib -lgts -L$(SC_DIR)/lib -lsc -lm -lglib-2.0
+#CXX_FLAGS = -I$(GTS_DIR)/include -I$(SC_DIR)/include $(GLIB_INCLUDE) -Iinclude
+LDFLAGS   = -L$(GTS_DIR)/lib -lgts -L$(SC_DIR)/lib -lsc -lm -lglib-2.0 $(H5_FLAG) -L/gpfs/home/gattif/LOCAL/mesquite/lib /gpfs/home/gattif/LOCAL/mesquite/lib/libmesquite.so 
+CXX_FLAGS = -I$(GTS_DIR)/include -I$(SC_DIR)/include $(GLIB_INCLUDE) $(MSQ_INCLUDE) -Iinclude
+
+## Target: all
+all: hexmeshv
+
+
+hexmeshv: $(objects)
+	$(CXX) $(objects) -o hexmeshv $(LDFLAGS)
+
+
+
+#
+# How to compile C++
+#
+%.o : %.cpp
+	@echo "Compiling C++ "$<"..."
+	$(CXX) $(CXX_FLAGS) -c $< -o $@
+
+
+
+#### Clean target deletes all generated files ####
+clean: 
+	rm $(objects)
+
+
+# Enable dependency checking
+.KEEP_STATE:
+.KEEP_STATE_FILE:.make.state.GNU-amd64-Linux
+
+

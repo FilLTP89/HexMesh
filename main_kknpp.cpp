@@ -65,16 +65,16 @@ int main(int argc, char** argv) {
     // There is a tool called stl2gts that convert STL files to GTS.
     // It is installed together with the gts library.
     
-    // [VOLVI]
-    GetMeshFromSurface(&mesh, "./volvi/topo.gts", coords);
-    //// [KKNPP]
-    //GetMeshFromSurface(&mesh, "./kknpp-new/topo_kknpp_small.gts", coords);
+    //// [VOLVI]
+    //GetMeshFromSurface(&mesh, "./volvi/topo.gts", coords);
+    // [KKNPP]
+    GetMeshFromSurface(&mesh, "./kknpp-new/topo_kknpp_small.gts", coords);
 
     //[MOD] modify here to add intercepted surface
-    // [VOLVI]
-    GetInterceptedElements(&mesh, coords, element_ids, "./volvi/geo_ef.gts");
-    //// [KKNPP]
-    //GetInterceptedElements(&mesh, coords, element_ids, "./kknpp-new/bathy_kknpp_small.gts");
+    //// [VOLVI]
+    //GetInterceptedElements(&mesh, coords, element_ids, "./volvi/geo_ef.gts");
+    // [KKNPP]
+    GetInterceptedElements(&mesh, coords, element_ids, "./kknpp-new/bathy_kknpp_small.gts");
     printf(" Elements intercepted: %lld\n\n", element_ids.size());
     printf(" Check and propagate 27-tree templates\n\n");
     //CheckOctreeTemplate(&mesh, coords, element_ids, true);
@@ -82,22 +82,22 @@ int main(int argc, char** argv) {
     //[MOD] intercept surface
     //element_ids.clear();
     
-    // [VOLVI]
-    Apply_material(&mesh, coords, element_ids, "./volvi/geo_ef.gts");
-    //// [KKNPP]
-    //Apply_material(&mesh, coords, element_ids, "./kknpp-new/bathy_kknpp_small.gts");
+    //// [VOLVI]
+    //Apply_material(&mesh, coords, element_ids, "./volvi/geo_ef.gts");
+    // [KKNPP]
+    Apply_material(&mesh, coords, element_ids, "./kknpp-new/bathy_kknpp_small.gts");
     //MovingNodes(&mesh,coords, nodes_b_mat,"./volvi/geo_flat.gts");
     //MeshOpt(&mesh,coords,nodes_b_mat);
 
 	printf(" Writing output files \n\n");
-    //// [KKNPP]
-	////hexa_mesh_write_vtk(&mesh, "kknpp_msh_small_rf6", &coords);
-	////hexa_mesh_write_msh(&mesh, "kknpp_msh_small_rf6", &coords);
-	//hexa_mesh_write_h5(&mesh,"kknpp_msh_small_rf6", coords);
-    // [VOLVI]
-	//hexa_mesh_write_vtk(&mesh, "volvi_msh_small_rf6", &coords);
-	//hexa_mesh_write_msh(&mesh, "volvi_msh_small_rf6", &coords);
-	hexa_mesh_write_h5(&mesh,"volvi_msh_small_rf6", coords);
+    // [KKNPP]
+	//hexa_mesh_write_vtk(&mesh, "kknpp_msh_small_rf6", &coords);
+	//hexa_mesh_write_msh(&mesh, "kknpp_msh_small_rf6", &coords);
+	hexa_mesh_write_h5(&mesh,"kknpp_msh_small_rf6", coords);
+    //// [VOLVI]
+	////hexa_mesh_write_vtk(&mesh, "volvi_msh_small_rf6", &coords);
+	////hexa_mesh_write_msh(&mesh, "volvi_msh_small_rf6", &coords);
+	//hexa_mesh_write_h5(&mesh,"volvi_msh_small_rf6", coords);
 
 	printf(" Cleaning variables \n\n");
 

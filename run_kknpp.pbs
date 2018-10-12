@@ -1,0 +1,27 @@
+#!/bin/bash
+
+#PBS -S /bin/bash
+#PBS -N kknpp
+#PBS -o ro_kknpp.txt
+#PBS -e re_kknpp.txt
+#PBS -l walltime=04:00:00
+#PBS -l select=1:ncpus=24:mem=60GB
+#PBS -q defaultq
+#PBS -P omaha
+#PBS -m e -M filippo.gatti@centralesupelec.fr 
+
+#chargement des modules
+module purge
+module load hdf5/1.8.20 
+module load intel-compilers/17.0.4
+module load blas/3.8.0
+module load intel-mpi/2017.0.3
+
+#On se place dans le reportoire depuis lequel le job a ete soumis
+cd $PBS_O_WORKDIR
+
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/workdir/gattif/libsc/local/lib:/workdir/gattif/gts-0.7.6/local/lib:/gpfs/home/gattif/LOCAL/mesquite/lib
+export LD_LIBRARY_PATH
+
+./hexmeshk 6
+
