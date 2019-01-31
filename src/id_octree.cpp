@@ -1206,6 +1206,11 @@ void IdentifyTemplate(hexa_tree_t* mesh, std::vector<int>& elements_ids, sc_hash
 		if(elem->tem== 9){el_9++;}
 		if(elem->tem==10){el_10++;}
 		if(elem->tem==11){el_11++;}
+
+		if(elem->inipad==-1){
+			elem->inipad = elem->pad;
+			elem->initem=elem->tem;
+		}
 	}
 
 	int su = 0;
@@ -2058,6 +2063,11 @@ void CheckOctreeTemplate(hexa_tree_t* mesh, const std::vector<double>& coords, s
 
 		octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, elements_ids[iel]);
 
+		for (int edge = 0; edge < 12; ++edge) {
+			edge_add(elem->edge[edge].id, hash_edge_ref );
+			elem->pad = 144;
+		}
+/*
 		GtsSegment * segments[12]={0};
 		GtsPoint * point[12]={NULL};
 		int ed_cont = 0;
@@ -2089,30 +2099,15 @@ void CheckOctreeTemplate(hexa_tree_t* mesh, const std::vector<double>& coords, s
 				list = list->next;
 			}
 		}
-
-
-		//Bounding box intercepted
-		if(elem->pad == -1 && ed_cont == 0){
-			elements_ids.erase(elements_ids.begin() + iel);
-			elem->pad = 0;
-			for (int edge = 0; edge < 12; ++edge) {
-				elem->edge[edge].ref = false;
-			}
-		}
-
-		//Gambi
-		if(elem->id==0){
-			for (int edge = 0; edge < 12; edge++) {
-				elem->edge[edge].ref = true;
-			}
-		}
-
+*/
+		/*
 		//clean points
 		for (int edge = 0; edge < 12; edge++) {
 			if (point[edge]) gts_object_destroy(GTS_OBJECT(point[edge]));
 			//if (segments[edge]) gts_object_destroy(GTS_OBJECT(segments[edge]));
 			point[edge] = NULL;
 		}
+		*/
 	}
 
 #ifdef HEXA_DEBUG_
@@ -2143,7 +2138,7 @@ void CheckOctreeTemplate(hexa_tree_t* mesh, const std::vector<double>& coords, s
 #endif  
 
 
-	for (int i = 0; i < 20; i++){
+	for (int i = 0; i < 100; i++){
 #ifdef HEXA_DEBUG_
 		if(0){
 			fprintf(mesh->fdbg ,"passo: %d\n",i);
@@ -2156,13 +2151,14 @@ void CheckOctreeTemplate(hexa_tree_t* mesh, const std::vector<double>& coords, s
 		}
 #endif  
 
-		IdentifyTemplate(mesh, elements_ids, hash_edge_ref);
-		Edge_identification( mesh, elements_ids, hash_edge_ref);
+		Edge_identification(mesh, elements_ids, hash_edge_ref);
 		Edge_propagation (mesh, elements_ids, hash_edge_ref);
 		Edge_comunication(mesh, elements_ids, hash_edge_ref);
+		IdentifyTemplate(mesh, elements_ids, hash_edge_ref);
+
 	}
 
-	IdentifyTemplate(mesh, elements_ids, hash_edge_ref);
+	//IdentifyTemplate(mesh, elements_ids, hash_edge_ref);
 
 	printf(" Elements ref: %d\n", elements_ids.size());
 

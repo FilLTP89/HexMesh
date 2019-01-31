@@ -14,553 +14,2238 @@ using namespace std;
 #include "hilbert.h"
 #include "refinement.h"
 
+#include <ctime>
+
 
 typedef struct {
-  GPtrArray * array;
+	GPtrArray * array;
 } ListOfPoints;
 
 static void InsertPoint(GtsPoint * p, ListOfPoints * lp) {
-    g_ptr_array_add(lp->array, p);
+	g_ptr_array_add(lp->array, p);
 }
 
 bool is_point_over_surface(GtsPoint * p, GNode * tree);
 
+unsigned el_hash_id(const void *v, const void *u) {
+	const octant_t *q = (const octant_t*) v;
+	uint64_t a, b, c;
 
+	a = (uint32_t) q->id;
+	b = (uint32_t) 0;
+	c = (uint32_t) 0;
+	sc_hash_mix(a, b, c);
+	sc_hash_final(a, b, c);
+	return (unsigned) c;
+}
 
-#if 0
+int el_equal_id(const void *v, const void *u, const void *w) {
+	const octant_t *e1 = (const octant_t*) v;
+	const octant_t *e2 = (const octant_t*) u;
 
-void Move_nodes(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& element_ids) {
-    bool clamped = true;
-    GtsSegment * segments[12];
-    GtsPoint * point[12];
-    int Edge2GNode[12][2];
-    int original_conn[8];
-    FILE * fdbg;
-
-    int id_offset = 0;
-
-    fdbg = fopen("move_nodes.txt", "w");
-    int temp_1 = 0;
-
-    for (int iel = 0; iel < element_ids.size(); ++iel) {
-        octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, element_ids[iel]);
-        elem->pad = -1;
-        //printf("Element: %d\n", element_ids[iel]);
-
-        bool edge_list[12];
-        int ed_cont = 0;
-
-        for (int edge = 0; edge < 12; ++edge) {
-            point[edge] = NULL;
-            int node1 = elem->nodes[EdgeVerticesMap[edge][0]].id;
-            int node2 = elem->nodes[EdgeVerticesMap[edge][1]].id;
-
-            //fprintf(fdbg, " Nodes : %d, %d\n", node1, node2);
-            //printf("Element: %d, Edges: %d\n", element_ids[iel],edge);
-
-            Edge2GNode[edge][0] = node1 <= node2 ? node1 : node2;
-            Edge2GNode[edge][1] = node1 >= node2 ? node1 : node2;
-
-            GtsVertex *v1 = gts_vertex_new(gts_vertex_class(), coords[node1 * 3], coords[node1 * 3 + 1], coords[node1 * 3 + 2]);
-            GtsVertex *v2 = gts_vertex_new(gts_vertex_class(), coords[node2 * 3], coords[node2 * 3 + 1], coords[node2 * 3 + 2]);
-
-            segments[edge] = gts_segment_new(gts_segment_class(), v1, v2);
-            GtsBBox *sb = gts_bbox_segment(gts_bbox_class(), segments[edge]);
-            GSList* list = gts_bb_tree_overlap(mesh->gdata.bbt, sb);
-            edge_list[edge] = false;
-            if (list == NULL) continue;
-            while (list) {
-                GtsBBox *b = GTS_BBOX(list->data);
-                point[edge] = SegmentTriangleIntersection(segments[edge], GTS_TRIANGLE(b->bounded));
-                if (point[edge]) {
-                    fprintf(fdbg, "El: %d\n", element_ids[iel]);
-                    fprintf(fdbg, "edge, %d\n ", edge);
-                    fprintf(fdbg, "nodes  : %d, %d\n", node1, node2);
-                    fprintf(fdbg, "point : %f, %f, %f\n", point[edge]->x, point[edge]->y, point[edge]->z);
-                    edge_list[edge] = true;
-                    ed_cont++;
-                    break;
-                }
-                list = list->next;
-            }
-        }
-
-        if (edge_list[4] && edge_list[5] && edge_list[6] && edge_list[7]) {
-            temp_1++;
-            for (int i_node = 4; i_node < 8; i_node++) {
-                int node1 = elem->nodes[i_node].id;
-                coords[node1 * 3 + 2] = point[i_node]->z;
-            }
-        }
-
-
-
-        //
-        //octant_node_t *gnode1 = (octant_node_t*) sc_array_index(&mesh->nodes, node1);
-        //octant_node_t *gnode2 = (octant_node_t*) sc_array_index(&mesh->nodes, node2);
-        /*
-                if (edge_list[edge] && gnode1->color != 1 && gnode2->color != 1) {
-
-                        //TODO SEGFAULT aqui no gts point
-                        GtsPoint *p0 = gts_point_new(gts_point_class(),
-                                        coords[node1 * 3],
-                                        coords[node1 * 3 + 1],
-                                        coords[node1 * 3 + 2]);
-
-                        GtsPoint *p1 = gts_point_new(gts_point_class(),
-                                        coords[node2 * 3],
-                                        coords[node2 * 3 + 1],
-                                        coords[node2 * 3 + 2]);
-
-
-                        double d_c1 = gts_point_distance(point[edge], p0);
-                        double d_c2 = gts_point_distance(point[edge], p1);
-
-
-                        fprintf(fdbg, "El: %d\n", element_ids[iel]);
-                        fprintf(fdbg, "nodes  : %d, %d\n", node1, node2);
-                        fprintf(fdbg, "point : %f, %f, %f\n", point[edge]->x, point[edge]->y, point[edge]->z);
-                        fprintf(fdbg, "no 0 : %f, %f, %f\n", coords[node1 * 3], coords[node1 * 3 + 1], coords[node1 * 3 + 2]);
-                        fprintf(fdbg, "no 1 : %f, %f, %f\n", coords[node2 * 3], coords[node2 * 3 + 1], coords[node2 * 3 + 2]);
-                        fprintf(fdbg, "d_c1: %f, d_c2: %f\n", d_c1, d_c2);
-
-                        if(0){
-                                if (edge == 4 || edge == 5 || edge == 6 || edge == 7) {
-
-                                        if (coords[node2 * 3 + 2] == 0) {
-                                                coords[node1 * 3 + 2] = point[edge]->z;
-                                        } else if (coords[node1 * 3 + 2] == 0) {
-                                                coords[node2 * 3 + 2] = point[edge]->z;
-                                        } else {
-
-                                                if (d_c1 >= d_c2) {
-                                                        coords[node2 * 3 + 2] = point[edge]->z;
-                                                        gnode2->pad = 1;
-
-                                                } else {
-                                                        coords[node1 * 3 + 2] = point[edge]->z;
-                                                        gnode1->pad = 1;
-                                                }
-
-                                        }
-
-                                } else {
-                                        if (d_c1 >= d_c2) {
-                                                coords[node2 * 3] = point[edge]->x;
-                                                coords[node2 * 3 + 1] = point[edge]->y;
-                                                gnode2->pad = 1;
-
-                                        } else {
-                                                coords[node1 * 3] = point[edge]->x;
-                                                coords[node1 * 3 + 1] = point[edge]->y;
-                                                gnode1->pad = 1;
-                                        }
-                                }
-
-                        }
-                }
-         */
-
-    }
-    printf("templates1: %d\n", temp_1);
-    fclose(fdbg);
+	return (unsigned) (e1->id == e2->id);
 
 }
 
+typedef struct {
+	bitmask_t coord[3];
+	int id;
+} node_in_edge_t;
 
-// Change the node positions to fit the surface.
-void Move_nodes(hexa_tree_t* mesh, const char* surface_bathy, vector<double>& coords, std::vector<int>& element_ids) {
+unsigned no_hash_fn1(const void *v, const void *u) {
+	const node_in_edge_t *q = (const node_in_edge_t*) v;
+	uint32_t a, b, c;
 
-    GtsPoint *p;
-    double dz;
-    double d, d0;
-    double zmax;
+	a = (uint32_t) q->id;
+	b = (uint32_t) 0;
+	c = (uint32_t) 0;
+	sc_hash_mix(a, b, c);
+	sc_hash_final(a, b, c);
+	return (unsigned) c;
+}
 
-    mesh->gdata.s = SurfaceRead(surface_bathy);
+int no_equal_fn1(const void *v, const void *u, const void *w) {
+	const node_in_edge_t *e1 = (const node_in_edge_t*) v;
+	const node_in_edge_t *e2 = (const node_in_edge_t*) u;
 
-    FILE *fout = fopen("surface.dat", "w");
-    gts_surface_print_stats(mesh->gdata.s, fout);
-    fclose(fout);
-
-    // Get the surface bounding box
-    mesh->gdata.bbox = gts_bbox_surface(gts_bbox_class(), mesh->gdata.s);
-
-    // Change the box size to cut the external elements
-    double factor = 0.05;
-    double x_factor = (mesh->gdata.bbox->x2 - mesh->gdata.bbox->x1) * factor;
-    double y_factor = (mesh->gdata.bbox->y2 - mesh->gdata.bbox->y1) * factor;
-
-    mesh->gdata.bbox->x1 += x_factor;
-    mesh->gdata.bbox->y1 += y_factor;
-
-    mesh->gdata.bbox->x2 -= x_factor;
-    mesh->gdata.bbox->y2 -= y_factor;
-
-    double Lx = (mesh->gdata.bbox->x2 - mesh->gdata.bbox->x1);
-    double Ly = (mesh->gdata.bbox->y2 - mesh->gdata.bbox->y1);
-    double zmin = ((Lx < Ly) ? -Lx : -Ly);
-
-    double el_size = Lx / mesh->ncellx;
-
-    // Build the bounding box tree
-    mesh->gdata.bbt = gts_bb_tree_surface(mesh->gdata.s);
-
-    p = gts_point_new(gts_point_class(), 0.0, 0.0, mesh->gdata.bbox->z2);
-
-    for (int iel = 0; iel < element_ids.size(); ++iel) {
-        octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, element_ids[iel]);
-
-        for (int ino = 0; ino < 8; ino++) {
-            int node = elem->nodes[ino].id;
-
-            if (elem->nodes[ino].z == 0) {
-                coords[node * 3 + 2] = 0;
-            } else {
-                p->x = coords[3 * node];
-                p->y = coords[3 * node + 1];
-
-                //d = gts_bb_tree_point_distance(mesh->gdata.bbt, p, distance, NULL);
-
-                p->z = 0;
-                d0 = gts_bb_tree_point_distance(mesh->gdata.bbt, p, distance, NULL);
-
-                int n_el = ceil(d0 / el_size / pow(3, elem->level - 1));
-
-                dz = d0 / (double) n_el;
-
-                int z_el = ceil(coords[3 * node + 2] / el_size / pow(3, elem->level - 1));
-
-                z_el = abs(z_el) + 1;
-
-                double z = -dz * z_el;
-
-                //printf("El: %d, d0: %f, n_el: %d, z_el: %d, z: %f\n",element_ids[iel],d0,n_el,z_el,z);
-
-                coords[node * 3 + 2] = z;
-
-                /*
-                zmax = mesh->gdata.bbox->z2 - d;
-                //printf("El: %d, d: %f, zmax: %f, bbz2: %f\n",element_ids[iel],d,zmax,mesh->gdata.bbox->z2);
-
-                dz = (zmax - zmin) / (double) mesh->ncellz;
-                //double z = zmax +  dz* elem->nodes[ino].z;
-                //printf("El: %d, node: %d, nz %d, z:%f\n",element_ids[iel],node,elem->nodes[ino].z,z);
-                //coords[node * 3 + 2] = z;
-                 *
-                 */
-
-            }
-        }
-    }
+	return (unsigned) ((e1->id == e2->id));
 
 }
 
-#endif
+void ProjectFreeNodes(hexa_tree_t* mesh,std::vector<double>& coords, std::vector<int>& nodes_b_mat){
 
-//Aplly the material properties to the elements
+	int Edge2GNode[12][2]={0};
+	int Edge2GNode_s[12][2]={0};
+	GtsSegment * segments[12]={0};
+	GtsSegment * segments_s[12]={0};
+	GtsSegment * segments_v;
+	GtsPoint * point[12]={NULL};
+	GtsPoint * point_s[12]={NULL};
+	GtsPoint * point_v={NULL};
+	bool clamped = true;
+	std::vector<double> aux;
+	int count = 0;
 
-void FindNodesBetweenMaterials(hexa_tree_t *mesh, std::vector<double>& coords, std::vector<int>& nodes_b_mat, int8_t* flag_nodes) {
+	if(false){
+		//achando os pontos de onde a superficie corta o octree nas 6 superficies
+		for (int ioc = 0; ioc < mesh->oct.elem_count; ++ioc) {
+			octree_t* oct = (octree_t*)sc_array_index(&mesh->oct,ioc);
 
-    sc_array_t *elements = &mesh->elements;
+			if(oct->cut){
+				int oc_count=0;
+				for(int i =0;i<8;i++){
+					if(oct->id[i]!=-1) {
+						oc_count++;
+					}
+				}
 
-    bool over;
- 
-    memset(flag_nodes, 0, sizeof (int8_t) * mesh->local_n_nodes);
+				if(oc_count==8){
+					octant_t* elem0 = (octant_t*)sc_array_index(&mesh->elements,oct->id[0]);
+					octant_t* elem1 = (octant_t*)sc_array_index(&mesh->elements,oct->id[1]);
+					octant_t* elem2 = (octant_t*)sc_array_index(&mesh->elements,oct->id[2]);
+					octant_t* elem3 = (octant_t*)sc_array_index(&mesh->elements,oct->id[3]);
+					octant_t* elem4 = (octant_t*)sc_array_index(&mesh->elements,oct->id[4]);
+					octant_t* elem5 = (octant_t*)sc_array_index(&mesh->elements,oct->id[5]);
+					octant_t* elem6 = (octant_t*)sc_array_index(&mesh->elements,oct->id[6]);
+					octant_t* elem7 = (octant_t*)sc_array_index(&mesh->elements,oct->id[7]);
 
-    for (int iel = 0; iel < elements->elem_count; ++iel) {
-        octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, iel);
-        if (elem->n_mat == 0)
-            for (int ino = 0; ino < 8; ++ino) {
-                int id = elem->nodes[ino].id;
-                if (flag_nodes[id] == 0) flag_nodes[id] = 1;
+					//verifica se as arestas foram cortadas
+					for(int edge =0; edge<12;edge++){
+						if(oct->edge[edge]){
+							int node0, node1;
+							if(edge==0){
+								node0 = elem0->nodes[0].id;
+								node1 = elem1->nodes[1].id;
+							}else if(edge==1){
+								node0 = elem1->nodes[1].id;
+								node1 = elem2->nodes[2].id;
+							}else if(edge==2){
+								node0 = elem2->nodes[2].id;
+								node1 = elem3->nodes[3].id;
+							}else if(edge==3){
+								node0 = elem3->nodes[3].id;
+								node1 = elem0->nodes[0].id;
+							}
 
-            }
+							else if(edge==4){
+								node0 = elem0->nodes[0].id;
+								node1 = elem4->nodes[4].id;
+							}else if(edge==5){
+								node0 = elem1->nodes[1].id;
+								node1 = elem5->nodes[5].id;
+							}else if(edge==6){
+								node0 = elem2->nodes[2].id;
+								node1 = elem6->nodes[6].id;
+							}else if(edge==7){
+								node0 = elem3->nodes[3].id;
+								node1 = elem7->nodes[7].id;
+							}
 
-    }
+							else if(edge==8){
+								node0 = elem4->nodes[4].id;
+								node1 = elem5->nodes[5].id;
+							}else if(edge==9){
+								node0 = elem5->nodes[5].id;
+								node1 = elem6->nodes[6].id;
+							}else if(edge==10){
+								node0 = elem6->nodes[6].id;
+								node1 = elem7->nodes[7].id;
+							}else if(edge==11){
+								node0 = elem7->nodes[7].id;
+								node1 = elem5->nodes[4].id;
+							}
 
-    for (int iel = 0; iel < elements->elem_count; ++iel) {
-        octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, iel);
-        if (elem->n_mat == 1)
-            for (int ino = 0; ino < 8; ++ino) {
-                int id = elem->nodes[ino].id;
-                if (flag_nodes[id] == 1) {
-                    flag_nodes[id] = 2;
-                    //nodes_b_mat.push_back(id);
-                }
-            }
+							GtsVertex *v1 = gts_vertex_new(gts_vertex_class(), coords[node0 * 3], coords[node0 * 3 + 1], coords[node0 * 3 + 2]);
+							GtsVertex *v2 = gts_vertex_new(gts_vertex_class(), coords[node1 * 3], coords[node1 * 3 + 1], coords[node1 * 3 + 2]);
 
-    }
-
-
-    for (int iel = 0; iel < elements->elem_count; ++iel) {
-        octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, iel);
-        if (elem->n_mat == 1) {
-
-            //Vertical edges:
-            int edge11 = elem->nodes[0].id;
-            int edge12 = elem->nodes[4].id;
-            if ((flag_nodes[edge11] == 2) && (flag_nodes[edge12] == 2)) flag_nodes[edge11] = 0;
-
-            int edge21 = elem->nodes[1].id;
-            int edge22 = elem->nodes[5].id;
-            if ((flag_nodes[edge21] == 2) && (flag_nodes[edge22] == 2)) flag_nodes[edge21] = 0;
-
-            int edge31 = elem->nodes[2].id;
-            int edge32 = elem->nodes[6].id;
-            if ((flag_nodes[edge31] == 2) && (flag_nodes[edge32] == 2)) flag_nodes[edge31] = 0;
-
-            int edge41 = elem->nodes[3].id;
-            int edge42 = elem->nodes[7].id;
-            if ((flag_nodes[edge41] == 2) && (flag_nodes[edge42] == 2)) flag_nodes[edge41] = 0;
-        }
-    }
-
-
-    for (int i = 0; i < mesh->local_n_nodes; i++) {
-
-        if (flag_nodes[i] == 2)
-            nodes_b_mat.push_back(i);
-
-    }
+							segments[edge] = gts_segment_new(gts_segment_class(), v1, v2);
+							GtsBBox *sb = gts_bbox_segment(gts_bbox_class(), segments[edge]);
+							GSList* list = gts_bb_tree_overlap(mesh->gdata.bbt, sb);
+							if (list == NULL) continue;
+							while (list) {
+								GtsBBox *b = GTS_BBOX(list->data);
+								point[edge] = SegmentTriangleIntersection(segments[edge], GTS_TRIANGLE(b->bounded));
+								if (point[edge]) {
+									break;
+								}
+								list = list->next;
+							}
+						}
+					}
 
 
-    //free(flag_nodes);
+					if(point[0]!=NULL){
+						aux.push_back(elem0->nodes[1].id);
+						aux.push_back(point[0]->x);
+						aux.push_back(point[0]->y);
+						aux.push_back(point[0]->z);
+					}
+					if(point[1]!=NULL){
+						aux.push_back(elem1->nodes[2].id);
+						aux.push_back(point[1]->x);
+						aux.push_back(point[1]->y);
+						aux.push_back(point[1]->z);
+					}
+					if(point[2]!=NULL){
+						aux.push_back(elem2->nodes[3].id);
+						aux.push_back(point[2]->x);
+						aux.push_back(point[2]->y);
+						aux.push_back(point[2]->z);
+					}
+					if(point[3]!=NULL){
+						aux.push_back(elem3->nodes[0].id);
+						aux.push_back(point[3]->x);
+						aux.push_back(point[3]->y);
+						aux.push_back(point[3]->z);
+					}
+
+					if(point[4]!=NULL){
+						aux.push_back(elem0->nodes[4].id);
+						aux.push_back(point[4]->x);
+						aux.push_back(point[4]->y);
+						aux.push_back(point[4]->z);
+					}
+					if(point[5]!=NULL){
+						aux.push_back(elem1->nodes[5].id);
+						aux.push_back(point[5]->x);
+						aux.push_back(point[5]->y);
+						aux.push_back(point[5]->z);
+					}
+					if(point[6]!=NULL){
+						aux.push_back(elem2->nodes[6].id);
+						aux.push_back(point[6]->x);
+						aux.push_back(point[6]->y);
+						aux.push_back(point[6]->z);
+					}
+					if(point[7]!=NULL){
+						aux.push_back(elem3->nodes[7].id);
+						aux.push_back(point[7]->x);
+						aux.push_back(point[7]->y);
+						aux.push_back(point[7]->z);
+					}
+
+					if(point[8]!=NULL){
+						aux.push_back(elem4->nodes[5].id);
+						aux.push_back(point[8]->x);
+						aux.push_back(point[8]->y);
+						aux.push_back(point[8]->z);
+					}
+					if(point[9]!=NULL){
+						aux.push_back(elem5->nodes[6].id);
+						aux.push_back(point[9]->x);
+						aux.push_back(point[9]->y);
+						aux.push_back(point[9]->z);
+					}
+					if(point[10]!=NULL){
+						aux.push_back(elem6->nodes[7].id);
+						aux.push_back(point[10]->x);
+						aux.push_back(point[10]->y);
+						aux.push_back(point[10]->z);
+					}
+					if(point[11]!=NULL){
+						aux.push_back(elem7->nodes[4].id);
+						aux.push_back(point[11]->x);
+						aux.push_back(point[11]->y);
+						aux.push_back(point[11]->z);
+					}
+				}
+			}
+		}
+
+		int count_i = count;
+		for(int iel = count_i ; iel<(aux.size()/4); iel++){
+			int node = aux[4*iel+0];
+			nodes_b_mat.push_back(node);
+			coords[3*node+0] = aux[4*iel+1];
+			coords[3*node+1] = aux[4*iel+2];
+			coords[3*node+2] = aux[4*iel+3];
+			count++;
+		}
+	}
+
+	if(true){
+		//achando os pontos de onde a superficie corta o octree nas 6 superficies
+		for (int ioc = 0; ioc < mesh->oct.elem_count; ++ioc) {
+			octree_t* oct = (octree_t*)sc_array_index(&mesh->oct,ioc);
+
+			if(oct->cut){
+				int oc_count=0;
+				for(int i =0;i<8;i++){
+					if(oct->id[i]!=-1) {
+						oc_count++;
+					}
+				}
+
+				for(int iel = 0; iel<8; iel++){
+					if(oc_count==8){
+						octant_t* elem = (octant_t*)sc_array_index(&mesh->elements,oct->id[iel]);
+
+						//verifica se as arestas foram cortadas
+						for (int edge = 0; edge < 12; ++edge) {
+							point[edge] = NULL;
+							int node1 = elem->nodes[EdgeVerticesMap[edge][0]].id;
+							int node2 = elem->nodes[EdgeVerticesMap[edge][1]].id;
+
+							Edge2GNode[edge][0] = node1 <= node2 ? node1 : node2;
+							Edge2GNode[edge][1] = node1 >= node2 ? node1 : node2;
+
+							GtsVertex *v1 = gts_vertex_new(gts_vertex_class(), coords[node1 * 3], coords[node1 * 3 + 1], coords[node1 * 3 + 2]);
+							GtsVertex *v2 = gts_vertex_new(gts_vertex_class(), coords[node2 * 3], coords[node2 * 3 + 1], coords[node2 * 3 + 2]);
+
+							segments[edge] = gts_segment_new(gts_segment_class(), v1, v2);
+							GtsBBox *sb = gts_bbox_segment(gts_bbox_class(), segments[edge]);
+							GSList* list = gts_bb_tree_overlap(mesh->gdata.bbt, sb);
+							if (list == NULL) continue;
+							while (list) {
+								GtsBBox *b = GTS_BBOX(list->data);
+								point[edge] = SegmentTriangleIntersection(segments[edge], GTS_TRIANGLE(b->bounded));
+								if (point[edge]) {
+									break;
+								}
+								list = list->next;
+							}
+						}
+						//verifica se as diagonais das faces foram cortadas
+						for (int edge = 0; edge < 12; ++edge) {
+							point_s[edge] = NULL;
+							int node1 = elem->nodes[EdgeVerticesMap_surf_diagonal[edge][0]].id;
+							int node2 = elem->nodes[EdgeVerticesMap_surf_diagonal[edge][1]].id;
+
+							Edge2GNode_s[edge][0] = node1 <= node2 ? node1 : node2;
+							Edge2GNode_s[edge][1] = node1 >= node2 ? node1 : node2;
+
+							GtsVertex *v1 = gts_vertex_new(gts_vertex_class(), coords[node1 * 3], coords[node1 * 3 + 1], coords[node1 * 3 + 2]);
+							GtsVertex *v2 = gts_vertex_new(gts_vertex_class(), coords[node2 * 3], coords[node2 * 3 + 1], coords[node2 * 3 + 2]);
+
+							segments_s[edge] = gts_segment_new(gts_segment_class(), v1, v2);
+							GtsBBox *sb = gts_bbox_segment(gts_bbox_class(), segments_s[edge]);
+							GSList* list = gts_bb_tree_overlap(mesh->gdata.bbt, sb);
+							if (list == NULL) continue;
+							while (list) {
+								GtsBBox *b = GTS_BBOX(list->data);
+								point_s[edge] = SegmentTriangleIntersection(segments_s[edge], GTS_TRIANGLE(b->bounded));
+								if (point_s[edge]) {
+									break;
+								}
+								list = list->next;
+							}
+						}
+
+						//teoricamente essa parte move os nos das faces :)
+						//face x-
+						if(oct->face[0]){
+
+							bool edge_cut = false;
+							if(iel==0){
+								if(point[7]!=NULL){
+									aux.push_back(elem->nodes[7].id);
+									aux.push_back(point[7]->x);
+									aux.push_back(point[7]->y);
+									aux.push_back(point[7]->z);
+									edge_cut = true;
+
+								}else if(point[11]!=NULL){
+									aux.push_back(elem->nodes[7].id);
+									aux.push_back(point[11]->x);
+									aux.push_back(point[11]->y);
+									aux.push_back(point[11]->z);
+									edge_cut = true;
+
+								}
+							}
+
+
+							if(iel==3){
+								if(point[4]!=NULL){
+									aux.push_back(elem->nodes[4].id);
+									aux.push_back(point[4]->x);
+									aux.push_back(point[4]->y);
+									aux.push_back(point[4]->z);
+									edge_cut = true;
+
+								}
+								if(point[11]!=NULL){
+									aux.push_back(elem->nodes[7].id);
+									aux.push_back(point[11]->x);
+									aux.push_back(point[11]->y);
+									aux.push_back(point[11]->z);
+									edge_cut = true;
+
+								}
+							}
+
+							if(iel==4){
+								if(point[7]!=NULL){
+									aux.push_back(elem->nodes[3].id);
+									aux.push_back(point[7]->x);
+									aux.push_back(point[7]->y);
+									aux.push_back(point[7]->z);
+									edge_cut = true;
+
+								}
+								if(point[3]!=NULL){
+									aux.push_back(elem->nodes[3].id);
+									aux.push_back(point[3]->x);
+									aux.push_back(point[3]->y);
+									aux.push_back(point[3]->z);
+									edge_cut = true;
+
+								}
+							}
+
+							if(iel==7){
+								if(point[4]!=NULL){
+									aux.push_back(elem->nodes[0].id);
+									aux.push_back(point[4]->x);
+									aux.push_back(point[4]->y);
+									aux.push_back(point[4]->z);
+									edge_cut = true;
+
+								}
+								if(point[3]!=NULL){
+									aux.push_back(elem->nodes[0].id);
+									aux.push_back(point[3]->x);
+									aux.push_back(point[3]->y);
+									aux.push_back(point[3]->z);
+									edge_cut = true;
+
+								}
+
+								if(!edge_cut){
+									if(point_s[4]!=NULL){
+										if(iel==0){
+											aux.push_back(elem->nodes[7].id);
+											aux.push_back(point_s[4]->x);
+											aux.push_back(point_s[4]->y);
+											aux.push_back(point_s[4]->z);
+										}
+										if(iel==7){
+											aux.push_back(elem->nodes[0].id);
+											aux.push_back(point_s[4]->x);
+											aux.push_back(point_s[4]->y);
+											aux.push_back(point_s[4]->z);
+										}
+									}
+									if(point_s[5]!=NULL){
+										if(iel==3){
+											aux.push_back(elem->nodes[4].id);
+											aux.push_back(point_s[5]->x);
+											aux.push_back(point_s[5]->y);
+											aux.push_back(point_s[5]->z);
+										}
+										if(iel==4){
+											aux.push_back(elem->nodes[3].id);
+											aux.push_back(point_s[5]->x);
+											aux.push_back(point_s[5]->y);
+											aux.push_back(point_s[5]->z);
+										}
+									}
+								}
+							}
+
+						}
+
+						//face x+
+						if(oct->face[1]){
+							bool edge_cut = false;
+
+							if(iel==1){
+								if(point[6]!=NULL){
+									aux.push_back(elem->nodes[6].id);
+									aux.push_back(point[6]->x);
+									aux.push_back(point[6]->y);
+									aux.push_back(point[6]->z);
+									edge_cut = true;
+
+								}else if(point[9]!=NULL){
+									aux.push_back(elem->nodes[6].id);
+									aux.push_back(point[9]->x);
+									aux.push_back(point[9]->y);
+									aux.push_back(point[9]->z);
+									edge_cut = true;
+
+								}
+							}
+
+
+							if(iel==2){
+								if(point[5]!=NULL){
+									aux.push_back(elem->nodes[5].id);
+									aux.push_back(point[5]->x);
+									aux.push_back(point[5]->y);
+									aux.push_back(point[5]->z);
+									edge_cut = true;
+
+								}
+								if(point[9]!=NULL){
+									aux.push_back(elem->nodes[5].id);
+									aux.push_back(point[9]->x);
+									aux.push_back(point[9]->y);
+									aux.push_back(point[9]->z);
+									edge_cut = true;
+
+								}
+							}
+
+							if(iel==5){
+								if(point[1]!=NULL){
+									aux.push_back(elem->nodes[2].id);
+									aux.push_back(point[1]->x);
+									aux.push_back(point[1]->y);
+									aux.push_back(point[1]->z);
+									edge_cut = true;
+
+								}
+								if(point[6]!=NULL){
+									aux.push_back(elem->nodes[2].id);
+									aux.push_back(point[6]->x);
+									aux.push_back(point[6]->y);
+									aux.push_back(point[6]->z);
+									edge_cut = true;
+
+								}
+							}
+
+							if(iel==6){
+								if(point[1]!=NULL){
+									aux.push_back(elem->nodes[1].id);
+									aux.push_back(point[1]->x);
+									aux.push_back(point[1]->y);
+									aux.push_back(point[1]->z);
+									edge_cut = true;
+
+								}
+								if(point[5]!=NULL){
+									aux.push_back(elem->nodes[1].id);
+									aux.push_back(point[5]->x);
+									aux.push_back(point[5]->y);
+									aux.push_back(point[5]->z);
+									edge_cut = true;
+
+								}
+							}
+							if(!edge_cut){
+								if(point_s[6]!=NULL){
+									if(iel==1){
+										aux.push_back(elem->nodes[6].id);
+										aux.push_back(point_s[6]->x);
+										aux.push_back(point_s[6]->y);
+										aux.push_back(point_s[6]->z);
+									}
+									if(iel==6){
+										aux.push_back(elem->nodes[1].id);
+										aux.push_back(point_s[6]->x);
+										aux.push_back(point_s[6]->y);
+										aux.push_back(point_s[6]->z);
+									}
+								}
+								if(point_s[7]!=NULL){
+									if(iel==2){
+										aux.push_back(elem->nodes[5].id);
+										aux.push_back(point_s[7]->x);
+										aux.push_back(point_s[7]->y);
+										aux.push_back(point_s[7]->z);
+
+										if(iel==5){
+											aux.push_back(elem->nodes[2].id);
+											aux.push_back(point_s[7]->x);
+											aux.push_back(point_s[7]->y);
+											aux.push_back(point_s[7]->z);
+										}
+									}
+								}
+							}
+						}
+
+						//face y-
+						if(oct->face[2]){
+							bool edge_cut = false;
+
+							if(iel==0){
+								if(point[5]!=NULL){
+									aux.push_back(elem->nodes[5].id);
+									aux.push_back(point[5]->x);
+									aux.push_back(point[5]->y);
+									aux.push_back(point[5]->z);
+									edge_cut = true;
+
+								}else if(point[8]!=NULL){
+									aux.push_back(elem->nodes[5].id);
+									aux.push_back(point[8]->x);
+									aux.push_back(point[8]->y);
+									aux.push_back(point[8]->z);
+									edge_cut = true;
+
+								}
+							}
+
+							if(iel==1){
+								if(point[4]!=NULL){
+									aux.push_back(elem->nodes[4].id);
+									aux.push_back(point[4]->x);
+									aux.push_back(point[4]->y);
+									aux.push_back(point[4]->z);
+									edge_cut = true;
+
+								}
+								if(point[8]!=NULL){
+									aux.push_back(elem->nodes[4].id);
+									aux.push_back(point[8]->x);
+									aux.push_back(point[8]->y);
+									aux.push_back(point[8]->z);
+									edge_cut = true;
+
+								}
+							}
+
+							if(iel==4){
+								if(point[5]!=NULL){
+									aux.push_back(elem->nodes[1].id);
+									aux.push_back(point[5]->x);
+									aux.push_back(point[5]->y);
+									aux.push_back(point[5]->z);
+									edge_cut = true;
+
+								}
+								if(point[0]!=NULL){
+									aux.push_back(elem->nodes[1].id);
+									aux.push_back(point[0]->x);
+									aux.push_back(point[0]->y);
+									aux.push_back(point[0]->z);
+									edge_cut = true;
+
+								}
+							}
+
+							if(iel==5){
+								if(point[4]!=NULL){
+									aux.push_back(elem->nodes[0].id);
+									aux.push_back(point[4]->x);
+									aux.push_back(point[4]->y);
+									aux.push_back(point[4]->z);
+									edge_cut = true;
+
+								}
+								if(point[0]!=NULL){
+									aux.push_back(elem->nodes[0].id);
+									aux.push_back(point[0]->x);
+									aux.push_back(point[0]->y);
+									aux.push_back(point[0]->z);
+									edge_cut = true;
+
+								}
+							}
+							if(!edge_cut){
+								if(point_s[0]!=NULL){
+									if(iel==0){
+										aux.push_back(elem->nodes[5].id);
+										aux.push_back(point_s[0]->x);
+										aux.push_back(point_s[0]->y);
+										aux.push_back(point_s[0]->z);
+									}
+									if(iel==5){
+										aux.push_back(elem->nodes[0].id);
+										aux.push_back(point_s[0]->x);
+										aux.push_back(point_s[0]->y);
+										aux.push_back(point_s[0]->z);
+									}
+								}
+								if(point_s[1]!=NULL){
+									if(iel==1){
+										aux.push_back(elem->nodes[4].id);
+										aux.push_back(point_s[1]->x);
+										aux.push_back(point_s[1]->y);
+										aux.push_back(point_s[1]->z);
+									}
+									if(iel==4){
+										aux.push_back(elem->nodes[1].id);
+										aux.push_back(point_s[1]->x);
+										aux.push_back(point_s[1]->y);
+										aux.push_back(point_s[1]->z);
+									}
+								}
+							}
+						}
+
+						//face y+
+						if(oct->face[3]){
+							bool edge_cut = false;
+
+							if(iel==2){
+								if(point[7]!=NULL){
+									aux.push_back(elem->nodes[7].id);
+									aux.push_back(point[7]->x);
+									aux.push_back(point[7]->y);
+									aux.push_back(point[7]->z);
+									edge_cut = true;
+
+								}else if(point[10]!=NULL){
+									aux.push_back(elem->nodes[7].id);
+									aux.push_back(point[10]->x);
+									aux.push_back(point[10]->y);
+									aux.push_back(point[10]->z);
+									edge_cut = true;
+
+								}
+							}
+
+
+							if(iel==3){
+								if(point[6]!=NULL){
+									aux.push_back(elem->nodes[6].id);
+									aux.push_back(point[6]->x);
+									aux.push_back(point[6]->y);
+									aux.push_back(point[6]->z);
+									edge_cut = true;
+
+								}
+								if(point[10]!=NULL){
+									aux.push_back(elem->nodes[6].id);
+									aux.push_back(point[10]->x);
+									aux.push_back(point[10]->y);
+									aux.push_back(point[10]->z);
+									edge_cut = true;
+
+								}
+							}
+
+							if(iel==6){
+								if(point[7]!=NULL){
+									aux.push_back(elem->nodes[3].id);
+									aux.push_back(point[7]->x);
+									aux.push_back(point[7]->y);
+									aux.push_back(point[7]->z);
+									edge_cut = true;
+
+								}
+								if(point[3]!=NULL){
+									aux.push_back(elem->nodes[3].id);
+									aux.push_back(point[3]->x);
+									aux.push_back(point[3]->y);
+									aux.push_back(point[3]->z);
+									edge_cut = true;
+
+								}
+							}
+
+							if(iel==7){
+								if(point[6]!=NULL){
+									aux.push_back(elem->nodes[2].id);
+									aux.push_back(point[6]->x);
+									aux.push_back(point[6]->y);
+									aux.push_back(point[6]->z);
+									edge_cut = true;
+
+								}
+								if(point[3]!=NULL){
+									aux.push_back(elem->nodes[2].id);
+									aux.push_back(point[3]->x);
+									aux.push_back(point[3]->y);
+									aux.push_back(point[3]->z);
+									edge_cut = true;
+
+								}
+							}
+							if(!edge_cut){
+								if(point_s[3]!=NULL){
+									if(iel==2){
+										aux.push_back(elem->nodes[7].id);
+										aux.push_back(point_s[3]->x);
+										aux.push_back(point_s[3]->y);
+										aux.push_back(point_s[3]->z);
+									}
+									if(iel==7){
+										aux.push_back(elem->nodes[2].id);
+										aux.push_back(point_s[3]->x);
+										aux.push_back(point_s[3]->y);
+										aux.push_back(point_s[3]->z);
+									}
+								}
+								if(point_s[2]!=NULL){
+									if(iel==3){
+										aux.push_back(elem->nodes[6].id);
+										aux.push_back(point_s[2]->x);
+										aux.push_back(point_s[2]->y);
+										aux.push_back(point_s[2]->z);
+									}
+									if(iel==6){
+										aux.push_back(elem->nodes[3].id);
+										aux.push_back(point_s[2]->x);
+										aux.push_back(point_s[2]->y);
+										aux.push_back(point_s[2]->z);
+									}
+								}
+							}
+						}
+
+						//face z-
+						if(oct->face[4]){
+							bool edge_cut = false;
+
+							if(iel==4){
+								if(point[9]!=NULL){
+									aux.push_back(elem->nodes[6].id);
+									aux.push_back(point[9]->x);
+									aux.push_back(point[9]->y);
+									aux.push_back(point[9]->z);
+									edge_cut = true;
+
+								}else if(point[10]!=NULL){
+									aux.push_back(elem->nodes[6].id);
+									aux.push_back(point[10]->x);
+									aux.push_back(point[10]->y);
+									aux.push_back(point[10]->z);
+									edge_cut = true;
+
+								}
+							}
+
+							if(iel==5){
+								if(point[11]!=NULL){
+									aux.push_back(elem->nodes[7].id);
+									aux.push_back(point[11]->x);
+									aux.push_back(point[11]->y);
+									aux.push_back(point[11]->z);
+									edge_cut = true;
+
+								}
+								if(point[10]!=NULL){
+									aux.push_back(elem->nodes[7].id);
+									aux.push_back(point[10]->x);
+									aux.push_back(point[10]->y);
+									aux.push_back(point[10]->z);
+									edge_cut = true;
+
+								}
+							}
+
+							if(iel==6){
+								if(point[8]!=NULL){
+									aux.push_back(elem->nodes[4].id);
+									aux.push_back(point[8]->x);
+									aux.push_back(point[8]->y);
+									aux.push_back(point[8]->z);
+									edge_cut = true;
+
+								}
+								if(point[11]!=NULL){
+									aux.push_back(elem->nodes[4].id);
+									aux.push_back(point[11]->x);
+									aux.push_back(point[11]->y);
+									aux.push_back(point[11]->z);
+									edge_cut = true;
+
+								}
+							}
+
+							if(iel==7){
+								if(point[8]!=NULL){
+									aux.push_back(elem->nodes[5].id);
+									aux.push_back(point[8]->x);
+									aux.push_back(point[8]->y);
+									aux.push_back(point[8]->z);
+									edge_cut = true;
+
+								}
+								if(point[9]!=NULL){
+									aux.push_back(elem->nodes[5].id);
+									aux.push_back(point[9]->x);
+									aux.push_back(point[9]->y);
+									aux.push_back(point[9]->z);
+									edge_cut = true;
+
+								}
+							}
+							if(!edge_cut){
+								if(point_s[8]!=NULL){
+									if(iel==4){
+										aux.push_back(elem->nodes[6].id);
+										aux.push_back(point_s[8]->x);
+										aux.push_back(point_s[8]->y);
+										aux.push_back(point_s[8]->z);
+									}
+									if(iel==6){
+										aux.push_back(elem->nodes[4].id);
+										aux.push_back(point_s[8]->x);
+										aux.push_back(point_s[8]->y);
+										aux.push_back(point_s[8]->z);
+									}
+								}
+								if(point_s[9]!=NULL){
+									if(iel==5){
+										aux.push_back(elem->nodes[7].id);
+										aux.push_back(point_s[9]->x);
+										aux.push_back(point_s[9]->y);
+										aux.push_back(point_s[9]->z);
+									}
+									if(iel==7){
+										aux.push_back(elem->nodes[5].id);
+										aux.push_back(point_s[9]->x);
+										aux.push_back(point_s[9]->y);
+										aux.push_back(point_s[9]->z);
+									}
+								}
+							}
+						}
+
+						//face z+
+						if(oct->face[5]){
+							bool edge_cut = false;
+
+							if(iel==0){
+								if(point[1]!=NULL){
+									aux.push_back(elem->nodes[2].id);
+									aux.push_back(point[1]->x);
+									aux.push_back(point[1]->y);
+									aux.push_back(point[1]->z);
+									edge_cut = true;
+
+								}else if(point[2]!=NULL){
+									aux.push_back(elem->nodes[2].id);
+									aux.push_back(point[2]->x);
+									aux.push_back(point[2]->y);
+									aux.push_back(point[2]->z);
+									edge_cut = true;
+
+								}
+							}
+
+							if(iel==1){
+								if(point[3]!=NULL){
+									aux.push_back(elem->nodes[3].id);
+									aux.push_back(point[3]->x);
+									aux.push_back(point[3]->y);
+									aux.push_back(point[3]->z);
+									edge_cut = true;
+
+								}
+								if(point[2]!=NULL){
+									aux.push_back(elem->nodes[3].id);
+									aux.push_back(point[2]->x);
+									aux.push_back(point[2]->y);
+									aux.push_back(point[2]->z);
+									edge_cut = true;
+
+								}
+							}
+
+							if(iel==2){
+								if(point[0]!=NULL){
+									aux.push_back(elem->nodes[0].id);
+									aux.push_back(point[0]->x);
+									aux.push_back(point[0]->y);
+									aux.push_back(point[0]->z);
+									edge_cut = true;
+
+								}
+								if(point[3]!=NULL){
+									aux.push_back(elem->nodes[0].id);
+									aux.push_back(point[3]->x);
+									aux.push_back(point[3]->y);
+									aux.push_back(point[3]->z);
+									edge_cut = true;
+
+								}
+							}
+
+							if(iel==3){
+								if(point[0]!=NULL){
+									aux.push_back(elem->nodes[1].id);
+									aux.push_back(point[0]->x);
+									aux.push_back(point[0]->y);
+									aux.push_back(point[0]->z);
+									edge_cut = true;
+
+								}
+								if(point[1]!=NULL){
+									aux.push_back(elem->nodes[1].id);
+									aux.push_back(point[1]->x);
+									aux.push_back(point[1]->y);
+									aux.push_back(point[1]->z);
+									edge_cut = true;
+
+								}
+							}
+							if(!edge_cut){
+
+								if(point_s[10]!=NULL){
+									if(iel==0){
+										aux.push_back(elem->nodes[2].id);
+										aux.push_back(point_s[10]->x);
+										aux.push_back(point_s[10]->y);
+										aux.push_back(point_s[10]->z);
+									}
+									if(iel==2){
+										aux.push_back(elem->nodes[0].id);
+										aux.push_back(point_s[10]->x);
+										aux.push_back(point_s[10]->y);
+										aux.push_back(point_s[10]->z);
+									}
+								}
+								if(point_s[11]!=NULL){
+									if(iel==1){
+										aux.push_back(elem->nodes[3].id);
+										aux.push_back(point_s[11]->x);
+										aux.push_back(point_s[11]->y);
+										aux.push_back(point_s[11]->z);
+									}
+									if(iel==3){
+										aux.push_back(elem->nodes[1].id);
+										aux.push_back(point_s[11]->x);
+										aux.push_back(point_s[11]->y);
+										aux.push_back(point_s[11]->z);
+									}
+								}
+							}
+						}
+					}
+				}
+
+				if(oc_count==4){
+					octant_t* elem0 = (octant_t*)sc_array_index(&mesh->elements,oct->id[0]);
+					octant_t* elem1 = (octant_t*)sc_array_index(&mesh->elements,oct->id[1]);
+					octant_t* elem4 = (octant_t*)sc_array_index(&mesh->elements,oct->id[4]);
+					octant_t* elem5 = (octant_t*)sc_array_index(&mesh->elements,oct->id[5]);
+
+					//edge 2
+					if(true){
+						int node1 = elem0->nodes[3].id;
+						int node2 = elem1->nodes[2].id;
+
+						GtsVertex *v1 = gts_vertex_new(gts_vertex_class(), coords[node1 * 3 + 0], coords[node1 * 3 + 1], coords[node1 * 3 + 2]);
+						GtsVertex *v2 = gts_vertex_new(gts_vertex_class(), coords[node2 * 3 + 0], coords[node2 * 3 + 1], coords[node2 * 3 + 2]);
+
+						int edge = 0;
+						point[edge] = NULL;
+						segments[edge] = gts_segment_new(gts_segment_class(), v1, v2);
+						GtsBBox *sb = gts_bbox_segment(gts_bbox_class(), segments[edge]);
+						GSList* list = gts_bb_tree_overlap(mesh->gdata.bbt, sb);
+						if (list == NULL) continue;
+						while (list) {
+							GtsBBox *b = GTS_BBOX(list->data);
+							point[edge] = SegmentTriangleIntersection(segments[edge], GTS_TRIANGLE(b->bounded));
+							if (point[edge]) {
+								break;
+							}
+							list = list->next;
+						}
+
+						if(point[edge]!=NULL){
+							if(elem0->x == mesh->x_end){
+								aux.push_back(elem0->nodes[2].id);
+								aux.push_back(point[edge]->x);
+								aux.push_back(point[edge]->y);
+								aux.push_back(point[edge]->z);
+							}else{
+								aux.push_back(elem0->nodes[2].id);
+								aux.push_back(coords[3*elem0->nodes[2].id+0]);
+								aux.push_back(coords[3*elem0->nodes[2].id+1]);
+								aux.push_back(point[edge]->z);
+							}
+						}
+
+					}
+
+				}
+			}
+		}
+
+		/*
+		int count_i = count;
+		for(int iel = count_i ; iel<(aux.size()/4); iel++){
+			int node = aux[4*iel+0];
+			nodes_b_mat.push_back(node);
+			coords[3*node+0] = aux[4*iel+1];
+			coords[3*node+1] = aux[4*iel+2];
+			coords[3*node+2] = aux[4*iel+3];
+			count++;
+		}
+		 */
+	}
+
+	if(true){
+		//achando os pontos de onde a superficie corta o octree nas 12 arestas
+		for (int ioc = 0; ioc < mesh->oct.elem_count; ++ioc) {
+			octree_t* oct = (octree_t*)sc_array_index(&mesh->oct,ioc);
+
+			if(oct->cut){
+
+				int oc_count=0;
+				for(int i =0;i<8;i++){
+					if(oct->id[i]!=-1) {
+						oc_count++;
+					}
+				}
+
+				for(int iel = 0; iel<8; iel++){
+					if(oc_count==8){
+						octant_t* elem = (octant_t*)sc_array_index(&mesh->elements,oct->id[iel]);
+
+						//verifica se as arestas foram cortadas
+						for (int edge = 0; edge < 12; ++edge) {
+							point[edge] = NULL;
+							int node1 = elem->nodes[EdgeVerticesMap[edge][0]].id;
+							int node2 = elem->nodes[EdgeVerticesMap[edge][1]].id;
+
+							Edge2GNode[edge][0] = node1 <= node2 ? node1 : node2;
+							Edge2GNode[edge][1] = node1 >= node2 ? node1 : node2;
+
+							GtsVertex *v1 = gts_vertex_new(gts_vertex_class(), coords[node1 * 3], coords[node1 * 3 + 1], coords[node1 * 3 + 2]);
+							GtsVertex *v2 = gts_vertex_new(gts_vertex_class(), coords[node2 * 3], coords[node2 * 3 + 1], coords[node2 * 3 + 2]);
+
+							segments[edge] = gts_segment_new(gts_segment_class(), v1, v2);
+							GtsBBox *sb = gts_bbox_segment(gts_bbox_class(), segments[edge]);
+							GSList* list = gts_bb_tree_overlap(mesh->gdata.bbt, sb);
+							if (list == NULL) continue;
+							while (list) {
+								GtsBBox *b = GTS_BBOX(list->data);
+								point[edge] = SegmentTriangleIntersection(segments[edge], GTS_TRIANGLE(b->bounded));
+								if (point[edge]) {
+									break;
+								}
+								list = list->next;
+							}
+						}
+
+						//debug
+						if(false){
+							if(ioc == 0 && (iel==0 || iel ==4)){
+
+								for(int ide = 0; ide <12; ide++){
+									printf("Aresta %d cortada? %d\n",ide,point[ide]);
+									printf("Aresta do octree %d\n", oct->edge[ide]);
+								}
+
+							}
+						}
+
+						if(1){
+							//teoricamente move os pontos na arestas da face z-...
+							if(oct->edge[8]){
+								if(point[8]!=NULL){
+									if(iel==4){
+										aux.push_back(elem->nodes[5].id);
+										aux.push_back(point[8]->x);
+										aux.push_back(point[8]->y);
+										aux.push_back(point[8]->z);
+
+									}
+									if(iel==5){
+										aux.push_back(elem->nodes[4].id);
+										aux.push_back(point[8]->x);
+										aux.push_back(point[8]->y);
+										aux.push_back(point[8]->z);
+
+									}
+								}
+							}
+
+							if(oct->edge[9]){
+								if(point[9]!=NULL){
+									if(iel==5){
+										aux.push_back(elem->nodes[6].id);
+										aux.push_back(point[9]->x);
+										aux.push_back(point[9]->y);
+										aux.push_back(point[9]->z);
+
+									}
+									if(iel==6){
+										aux.push_back(elem->nodes[5].id);
+										aux.push_back(point[9]->x);
+										aux.push_back(point[9]->y);
+										aux.push_back(point[9]->z);
+
+									}
+								}
+							}
+
+							if(oct->edge[10]){
+								if(point[10]!=NULL){
+									if(iel==6){
+										aux.push_back(elem->nodes[7].id);
+										aux.push_back(point[10]->x);
+										aux.push_back(point[10]->y);
+										aux.push_back(point[10]->z);
+
+									}
+									if(iel==7){
+										aux.push_back(elem->nodes[6].id);
+										aux.push_back(point[10]->x);
+										aux.push_back(point[10]->y);
+										aux.push_back(point[10]->z);
+
+									}
+								}
+							}
+
+							if(oct->edge[11]){
+								if(point[11]!=NULL){
+									if(iel==7){
+										aux.push_back(elem->nodes[4].id);
+										aux.push_back(point[11]->x);
+										aux.push_back(point[11]->y);
+										aux.push_back(point[11]->z);
+
+									}
+									if(iel==4){
+										aux.push_back(elem->nodes[7].id);
+										aux.push_back(point[11]->x);
+										aux.push_back(point[11]->y);
+										aux.push_back(point[11]->z);
+
+									}
+								}
+							}
+
+							//teoricamente move os pontos na arestas verticais...
+							if(oct->edge[4]){
+								if(point[4]!=NULL){
+									if(iel==0){
+										aux.push_back(elem->nodes[4].id);
+										aux.push_back(point[4]->x);
+										aux.push_back(point[4]->y);
+										aux.push_back(point[4]->z);
+
+									}
+									if(iel==4){
+										aux.push_back(elem->nodes[0].id);
+										aux.push_back(point[4]->x);
+										aux.push_back(point[4]->y);
+										aux.push_back(point[4]->z);
+
+									}
+								}
+							}
+
+							if(oct->edge[5]){
+								if(point[5]!=NULL){
+									if(iel==1){
+										aux.push_back(elem->nodes[5].id);
+										aux.push_back(point[5]->x);
+										aux.push_back(point[5]->y);
+										aux.push_back(point[5]->z);
+
+									}
+									if(iel==5){
+										aux.push_back(elem->nodes[1].id);
+										aux.push_back(point[5]->x);
+										aux.push_back(point[5]->y);
+										aux.push_back(point[5]->z);
+
+									}
+								}
+							}
+
+							if(oct->edge[6]){
+								if(point[6]!=NULL){
+									if(iel==2){
+										aux.push_back(elem->nodes[6].id);
+										aux.push_back(point[6]->x);
+										aux.push_back(point[6]->y);
+										aux.push_back(point[6]->z);
+
+									}
+									if(iel==6){
+										aux.push_back(elem->nodes[2].id);
+										aux.push_back(point[6]->x);
+										aux.push_back(point[6]->y);
+										aux.push_back(point[6]->z);
+
+									}
+								}
+							}
+
+							if(oct->edge[7]){
+								if(point[7]!=NULL){
+									if(iel==3){
+										aux.push_back(elem->nodes[7].id);
+										aux.push_back(point[7]->x);
+										aux.push_back(point[7]->y);
+										aux.push_back(point[7]->z);
+
+									}
+									if(iel==7){
+										aux.push_back(elem->nodes[3].id);
+										aux.push_back(point[7]->x);
+										aux.push_back(point[7]->y);
+										aux.push_back(point[7]->z);
+
+									}
+								}
+							}
+
+							//teoricamente move os pontos na arestas da face z+...
+							if(oct->edge[0]){
+								if(point[0]!=NULL){
+									if(iel==0){
+										aux.push_back(elem->nodes[1].id);
+										aux.push_back(point[0]->x);
+										aux.push_back(point[0]->y);
+										aux.push_back(point[0]->z);
+
+									}
+									if(iel==1){
+										aux.push_back(elem->nodes[0].id);
+										aux.push_back(point[0]->x);
+										aux.push_back(point[0]->y);
+										aux.push_back(point[0]->z);
+
+									}
+								}
+							}
+
+							if(oct->edge[1]){
+								if(point[1]!=NULL){
+									if(iel==1){
+										aux.push_back(elem->nodes[2].id);
+										aux.push_back(point[1]->x);
+										aux.push_back(point[1]->y);
+										aux.push_back(point[1]->z);
+
+									}
+									if(iel==2){
+										aux.push_back(elem->nodes[1].id);
+										aux.push_back(point[1]->x);
+										aux.push_back(point[1]->y);
+										aux.push_back(point[1]->z);
+
+									}
+								}
+							}
+
+							if(oct->edge[2]){
+								if(point[2]!=NULL){
+									if(iel==2){
+										aux.push_back(elem->nodes[3].id);
+										aux.push_back(point[2]->x);
+										aux.push_back(point[2]->y);
+										aux.push_back(point[2]->z);
+
+									}
+									if(iel==3){
+										aux.push_back(elem->nodes[2].id);
+										aux.push_back(point[2]->x);
+										aux.push_back(point[2]->y);
+										aux.push_back(point[2]->z);
+
+									}
+								}
+							}
+
+							if(oct->edge[3]){
+								if(point[3]!=NULL){
+									if(iel==3){
+										aux.push_back(elem->nodes[0].id);
+										aux.push_back(point[3]->x);
+										aux.push_back(point[3]->y);
+										aux.push_back(point[3]->z);
+
+									}
+									if(iel==0){
+										aux.push_back(elem->nodes[3].id);
+										aux.push_back(point[3]->x);
+										aux.push_back(point[3]->y);
+										aux.push_back(point[3]->z);
+
+									}
+								}
+							}
+						}
+					}
+
+				}
+
+				if(oc_count==4 ){
+					octant_t* elem0 = (octant_t*)sc_array_index(&mesh->elements,oct->id[0]);
+					octant_t* elem1 = (octant_t*)sc_array_index(&mesh->elements,oct->id[1]);
+					octant_t* elem4 = (octant_t*)sc_array_index(&mesh->elements,oct->id[4]);
+					octant_t* elem5 = (octant_t*)sc_array_index(&mesh->elements,oct->id[5]);
+
+					//edge 7
+					if(true){
+						int node1 = elem0->nodes[3].id;
+						int node2 = elem4->nodes[7].id;
+
+						GtsVertex *v1 = gts_vertex_new(gts_vertex_class(), coords[node1 * 3], coords[node1 * 3 + 1], coords[node1 * 3 + 2]);
+						GtsVertex *v2 = gts_vertex_new(gts_vertex_class(), coords[node2 * 3], coords[node2 * 3 + 1], coords[node2 * 3 + 2]);
+
+						int edge = 0;
+						segments[edge] = gts_segment_new(gts_segment_class(), v1, v2);
+						GtsBBox *sb = gts_bbox_segment(gts_bbox_class(), segments[edge]);
+						GSList* list = gts_bb_tree_overlap(mesh->gdata.bbt, sb);
+						if (list == NULL) continue;
+						while (list) {
+							GtsBBox *b = GTS_BBOX(list->data);
+							point[edge] = SegmentTriangleIntersection(segments[edge], GTS_TRIANGLE(b->bounded));
+							if (point[edge]) {
+								break;
+							}
+							list = list->next;
+						}
+
+
+						if(point[edge]!=NULL){
+							aux.push_back(elem0->nodes[7].id);
+							aux.push_back(point[edge]->x);
+							aux.push_back(point[edge]->y);
+							aux.push_back(point[edge]->z);
+						}
+
+					}
+
+				}
+
+			}
+		}
+		/*
+		for(int iel = 0 ; iel<(aux.size()/4); iel++){
+			int node = aux[4*iel+0];
+			nodes_b_mat.push_back(node);
+			coords[3*node+0] = aux[4*iel+1];
+			coords[3*node+1] = aux[4*iel+2];
+			coords[3*node+2] = aux[4*iel+3];
+			count++;
+		}
+		 */
+	}
+
+	for(int iel = 0 ; iel<(aux.size()/4); iel++){
+		int node = aux[4*iel+0];
+		nodes_b_mat.push_back(node);
+		coords[3*node+0] = aux[4*iel+1];
+		coords[3*node+1] = aux[4*iel+2];
+		coords[3*node+2] = aux[4*iel+3];
+		count++;
+	}
+
+	printf("Com absoluta certeza algum dos nos centrais vao estar errados...\n");
+
+	if(true){
+		//achando os pontos de onde a superficie corta o octree no central
+		int ccc =0;
+		for (int ioc = 0; ioc < mesh->oct.elem_count; ++ioc) {
+			octree_t* oct = (octree_t*)sc_array_index(&mesh->oct,ioc);
+
+			if(oct->cut){
+				ccc++;
+				int oc_count=0;
+				for(int i =0;i<8;i++){
+					if(oct->id[i]!=-1) {
+						oc_count++;
+					}
+				}
+				if(oc_count==8){
+					octant_t* elem1 = (octant_t*)sc_array_index(&mesh->elements,oct->id[0]);
+					octant_t* elem2 = (octant_t*)sc_array_index(&mesh->elements,oct->id[4]);
+
+					point_v = NULL;
+					int node1 = elem1->nodes[2].id;
+					int node2 = elem2->nodes[6].id;
+
+					GtsVertex *v1 = gts_vertex_new(gts_vertex_class(), coords[node1 * 3], coords[node1 * 3 + 1], coords[node1 * 3 + 2]+0.50*coords[node1 * 3 + 2]);
+					GtsVertex *v2 = gts_vertex_new(gts_vertex_class(), coords[node2 * 3], coords[node2 * 3 + 1], coords[node2 * 3 + 2]-0.50*coords[node2 * 3 + 2]);
+
+					octant_t* elem3 = (octant_t*)sc_array_index(&mesh->elements,oct->id[2]);
+
+					v1 = gts_vertex_new(gts_vertex_class(), coords[elem1->nodes[5].id * 3+0], coords[elem1->nodes[7].id * 3 + 1], coords[node1 * 3 + 2]+0.0*coords[node1 * 3 + 2]);
+					v2 = gts_vertex_new(gts_vertex_class(), coords[elem3->nodes[7].id * 3+0], coords[elem3->nodes[5].id * 3 + 1], coords[node2 * 3 + 2]-0.0*coords[node2 * 3 + 2]);
+
+					segments_v = gts_segment_new(gts_segment_class(), v1, v2);
+					GtsBBox *sb = gts_bbox_segment(gts_bbox_class(), segments_v);
+					GSList* list = gts_bb_tree_overlap(mesh->gdata.bbt, sb);
+					if (list == NULL) continue;
+					while (list) {
+						GtsBBox *b = GTS_BBOX(list->data);
+						point_v = SegmentTriangleIntersection(segments_v, GTS_TRIANGLE(b->bounded));
+						if (point_v) {
+							break;
+						}
+						list = list->next;
+					}
+
+					if(point_v!=NULL){
+						int cnode = elem1->nodes[6].id;
+						nodes_b_mat.push_back(cnode);
+						coords[3*cnode+0] = point_v->x;
+						coords[3*cnode+1] = point_v->y;
+						coords[3*cnode+2] = point_v->z;
+						/*
+						aux.push_back(cnode);
+						aux.push_back(point_v->x);
+						aux.push_back(point_v->y);
+						aux.push_back(point_v->z);
+						 */
+					}else{
+						printf("Deu ruim na ideia... oc:%d\n",oc_count);
+					}
+				}
+
+				if(oc_count==4){
+					octant_t* elem0 = (octant_t*)sc_array_index(&mesh->elements,oct->id[0]);
+					octant_t* elem1 = (octant_t*)sc_array_index(&mesh->elements,oct->id[1]);
+					octant_t* elem4 = (octant_t*)sc_array_index(&mesh->elements,oct->id[4]);
+					octant_t* elem5 = (octant_t*)sc_array_index(&mesh->elements,oct->id[5]);
+
+					//edge 7
+					int node1 = elem0->nodes[3].id;
+					int node2 = elem5->nodes[6].id;
+
+					GtsVertex *v1 = gts_vertex_new(gts_vertex_class(), coords[node1 * 3], coords[node1 * 3 + 1], coords[node1 * 3 + 2]);
+					GtsVertex *v2 = gts_vertex_new(gts_vertex_class(), coords[node2 * 3], coords[node2 * 3 + 1], coords[node2 * 3 + 2]);
+
+					int edge = 0;
+					segments[edge] = gts_segment_new(gts_segment_class(), v1, v2);
+					GtsBBox *sb = gts_bbox_segment(gts_bbox_class(), segments[edge]);
+					GSList* list = gts_bb_tree_overlap(mesh->gdata.bbt, sb);
+					if (list == NULL) continue;
+					while (list) {
+						GtsBBox *b = GTS_BBOX(list->data);
+						point[edge] = SegmentTriangleIntersection(segments[edge], GTS_TRIANGLE(b->bounded));
+						if (point[edge]) {
+							break;
+						}
+						list = list->next;
+					}
+
+					if(point[edge]!=NULL){
+						int cnode = elem0->nodes[6].id;
+						nodes_b_mat.push_back(cnode);
+						coords[3*cnode+0] = coords[cnode * 3];
+						coords[3*cnode+1] = coords[cnode * 3+1];
+						coords[3*cnode+2] = point[edge]->z;
+						/*
+							aux.push_back(cnode);
+							aux.push_back(point[edge]->x);
+							aux.push_back(point[edge]->y);
+							aux.push_back(point[edge]->z);
+						 */
+					}
+				}
+
+
+
+			}
+		}
+	}
+
+	//fazendo a hash dos nos fixos para evitar repeticao
+	sc_hash_array_t* hash_FixedNodes = sc_hash_array_new(sizeof (node_t), edge_hash_fn, edge_equal_fn, &clamped);
+	size_t position;
+	node_t *r;
+	node_t key;
+
+	for(int ii = 0;ii < nodes_b_mat.size();ii++){
+		//printf("No do caralho da porra:%d\n",nodes_b_mat[ii]);
+		key.coord[0] = coords[3*nodes_b_mat[ii]+0];
+		key.coord[1] = coords[3*nodes_b_mat[ii]+1];
+		key.coord[2] = coords[3*nodes_b_mat[ii]+2];
+		key.node_id = nodes_b_mat[ii];
+
+		//printf("no fixo, id dele é:%d\n",nodes_b_mat[ii]);
+
+		r = (node_t*) sc_hash_array_insert_unique(hash_FixedNodes, &key, &position);
+		if (r != NULL) {
+			r->coord[0] = key.coord[0];
+			r->coord[1] = key.coord[1];
+			r->coord[2] = key.coord[2];
+			r->node_id = nodes_b_mat[ii];
+		} else {
+			//printf("Ta me achando com cara de palhaco?");
+		}
+	}
+
+	nodes_b_mat.clear();
+	for(int ii = 0;ii < hash_FixedNodes->a.elem_count ;ii++){
+		node_t* node = (node_t*) sc_array_index (&hash_FixedNodes->a, ii);
+		nodes_b_mat.push_back(node->node_id);
+		//printf("nos que estao na hash:%d\n",nodes_b_mat[ii] );
+	}
+	printf("Total de %d nos fixos...\n",nodes_b_mat.size());
+
 
 }
 
-// Change the node positions to fit the surface.
+void FreeMovableNodes(hexa_tree_t* mesh){
+	//
+	for(int iel = 0; iel < mesh->oct.elem_count; iel++){
+		octree_t *oct = (octree_t*) sc_array_index(&mesh->oct, iel);
 
-void ProjectNodes(hexa_tree_t* mesh, vector<double>& coords, std::vector<int>& nodes_b_mat, int8_t* flag_nodes) {
+		for(int i=0; i<8; i++){
+			if(oct->id[i]!=-1 && oct->cut){
+				octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, oct->id[i]);
 
-    // Change the box size to cut the external elements
-    double factor = 0.05;
-    double x_factor = (mesh->gdata.bbox->x2 - mesh->gdata.bbox->x1) * factor;
-    double y_factor = (mesh->gdata.bbox->y2 - mesh->gdata.bbox->y1) * factor;
+				//liberando as arestas agora
+				//face superior
+				if(oct->edge[0]){
+					if(i==0){
+						elem->nodes[1].fixed=2;
+					}
+					if(i==1){
+						elem->nodes[0].fixed=2;
+					}
+				}
+				if(oct->edge[1]){
+					if(i==1){
+						elem->nodes[2].fixed=2;
+					}
+					if(i==2){
+						elem->nodes[1].fixed=2;
+					}
+				}
+				if(oct->edge[2]){
+					if(i==2){
+						elem->nodes[3].fixed=2;
+					}
+					if(i==3){
+						elem->nodes[2].fixed=2;
+					}
+				}
+				if(oct->edge[3]){
+					if(i==3){
+						elem->nodes[0].fixed=2;
+					}
+					if(i==0){
+						elem->nodes[3].fixed=2;
+					}
+				}
 
-    mesh->gdata.bbox->x1 += x_factor;
-    mesh->gdata.bbox->y1 += y_factor;
-
-    mesh->gdata.bbox->x2 -= x_factor;
-    mesh->gdata.bbox->y2 -= y_factor;
-
-    double Lx = (mesh->gdata.bbox->x2 - mesh->gdata.bbox->x1);
-    double Ly = (mesh->gdata.bbox->y2 - mesh->gdata.bbox->y1);
-    double zmin = ((Lx < Ly) ? -Lx : -Ly);
-
-    ListOfPoints lst;
-    lst.array = g_ptr_array_new();
-
-    gts_surface_foreach_vertex(mesh->gdata.s, (GtsFunc) InsertPoint, &lst);
-
-    GNode* kdtree = gts_kdtree_new(lst.array, NULL);
-
-    g_ptr_array_free(lst.array, TRUE);
-
-
-    double el_size = Lx / mesh->ncellx;
-
-    GtsPoint *p = gts_point_new(gts_point_class(), 0.0, 0.0, 0.0);
-
-    for (int i = 0; i < nodes_b_mat.size(); i++) {
-        int node = nodes_b_mat[i];
-        p->x = coords[3 * node + 0];
-        p->y = coords[3 * node + 1];
-        p->z = coords[3 * node + 2];
-
-
-        if (p->z < 0.0) {
-
-            GtsBBox * bbox;
-            GSList * selected, * j;
-
-            double epsilon = gts_bb_tree_point_distance(mesh->gdata.bbt, p, distance, NULL);
-            /* build bounding box */
-            bbox = gts_bbox_new(gts_bbox_class(),
-                    p,
-                    p->x - epsilon,
-                    p->y - epsilon,
-                    p->z - epsilon,
-                    p->x + epsilon,
-                    p->y + epsilon,
-                    p->z + epsilon);
-
-            /* select vertices which are inside bbox using kdtree */
-            j = gts_kdtree_range(kdtree, bbox, NULL);
-            //std::cout << "projecting node ... " << node << std::endl;
-
-            double min_dist = epsilon;
-            GtsPoint *pmin = NULL;
-            while (j) {
-                GtsPoint * v = (GtsPoint *) j->data;
-                double d = gts_point_distance(v, p);
-                if (d < min_dist)
-                    pmin = v;
-                j = j->next;
-            }
-
-            if (pmin != NULL) {
-                p->x = pmin->x;
-                p->z = pmin->y;
-                p->z = pmin->z;
-            } else {
-                bool over = is_point_over_surface(p, mesh->gdata.bbt);
-                if (over)
-                    p->z -= epsilon;
-                else
-                    p->z += epsilon;
-            }
+				//face inferior
+				if(oct->edge[8]){
+					if(i==4){
+						elem->nodes[5].fixed=2;
+					}
+					if(i==5){
+						elem->nodes[4].fixed=2;
+					}
+				}
+				if(oct->edge[9]){
+					if(i==5){
+						elem->nodes[6].fixed=2;
+					}
+					if(i==6){
+						elem->nodes[5].fixed=2;
+					}
+				}
+				if(oct->edge[10]){
+					if(i==6){
+						elem->nodes[7].fixed=2;
+					}
+					if(i==7){
+						elem->nodes[6].fixed=2;
+					}
+				}
+				if(oct->edge[11]){
+					if(i==7){
+						elem->nodes[4].fixed=2;
+					}
+					if(i==4){
+						elem->nodes[7].fixed=2;
+					}
+				}
 
 
-            if (p->z >= 0.0) p->z = 0.0;
+				if(oct->edge[4]){
+					if(i==0){
+						elem->nodes[4].fixed=2;
+					}
+					if(i==4){
+						elem->nodes[0].fixed=2;
+					}
+				}
+				if(oct->edge[5]){
+					if(i==1){
+						elem->nodes[5].fixed=2;
+					}
+					if(i==5){
+						elem->nodes[1].fixed=2;
+					}
+				}
+				if(oct->edge[6]){
+					if(i==2){
+						elem->nodes[6].fixed=2;
+					}
+					if(i==6){
+						elem->nodes[2].fixed=2;
+					}
+				}
+				if(oct->edge[7]){
+					if(i==3){
+						elem->nodes[7].fixed=2;
+					}
+					if(i==7){
+						elem->nodes[3].fixed=2;
+					}
+				}
 
- 
+				//liberando as faces agora
+				if(oct->face[0]){
+					if(i==0){
+						elem->nodes[7].fixed=2;
+					}
+					if(i==4){
+						elem->nodes[3].fixed=2;
+					}
+					if(i==3){
+						elem->nodes[4].fixed=2;
+					}
+					if(i==7){
+						elem->nodes[0].fixed=2;
+					}
+				}
 
-        } else
-            p->z = 0;
+				if(oct->face[1]){
+					if(i==1){
+						elem->nodes[6].fixed=2;
+					}
+					if(i==5){
+						elem->nodes[2].fixed=2;
+					}
+					if(i==2){
+						elem->nodes[5].fixed=2;
+					}
+					if(i==6){
+						elem->nodes[1].fixed=2;
+					}
+				}
 
-        coords[3 * node + 0] = p->x;
-        coords[3 * node + 1] = p->y;
-        coords[3 * node + 2] = p->z;
+				if(oct->face[2]){
+					if(i==0){
+						elem->nodes[6].fixed=2;
+					}
+					if(i==1){
+						elem->nodes[5].fixed=2;
+					}
+					if(i==4){
+						elem->nodes[1].fixed=2;
+					}
+					if(i==5){
+						elem->nodes[0].fixed=2;
+					}
+				}
 
-    }
+				if(oct->face[3]){
+					if(i==2){
+						elem->nodes[7].fixed=2;
+					}
+					if(i==3){
+						elem->nodes[6].fixed=2;
+					}
+					if(i==6){
+						elem->nodes[3].fixed=2;
+					}
+					if(i==7){
+						elem->nodes[2].fixed=2;
+					}
+				}
 
-    for (int iel = 0; iel < mesh->elements.elem_count; ++iel) {
-        octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, iel);
-        if (elem->n_mat == 1) {
+				if(oct->face[4]){
+					if(i==4){
+						elem->nodes[6].fixed=2;
+					}
+					if(i==5){
+						elem->nodes[7].fixed=2;
+					}
+					if(i==6){
+						elem->nodes[4].fixed=2;
+					}
+					if(i==7){
+						elem->nodes[5].fixed=2;
+					}
+				}
 
-            //Vertical edges:
-
-            int edge11 = elem->nodes[0].id;
-            int edge12 = elem->nodes[4].id;
-            {
-                int z1 = coords[3 * edge11 + 2];
-                int z2 = coords[3 * edge12 + 2];
-                if (z2 > z1) {
-                    double tmp = z1;
-                    coords[3 * edge11 + 2] = z2;
-                    coords[3 * edge12 + 2] = tmp;
-                    int i = flag_nodes[edge11];
-                    flag_nodes[edge11] = flag_nodes[edge12];
-                    flag_nodes[edge12] = i;
-
-                }
-
-            }
-
-
-            int edge21 = elem->nodes[1].id;
-            int edge22 = elem->nodes[5].id;
-            {
-                int z1 = coords[3 * edge21 + 2];
-                int z2 = coords[3 * edge22 + 2];
-                if (z2 > z1) {
-                    double tmp = z1;
-                    coords[3 * edge21 + 2] = z2;
-                    coords[3 * edge22 + 2] = tmp;
-                    int i = flag_nodes[edge21];
-                    flag_nodes[edge21] = flag_nodes[edge22];
-                    flag_nodes[edge22] = i;
-
-                }
-
-            }
-
-            int edge31 = elem->nodes[2].id;
-            int edge32 = elem->nodes[6].id;
-            {
-                int z1 = coords[3 * edge31 + 2];
-                int z2 = coords[3 * edge32 + 2];
-                if (z2 > z1) {
-                    double tmp = z1;
-                    coords[3 * edge31 + 2] = z2;
-                    coords[3 * edge32 + 2] = tmp;
-                    int i = flag_nodes[edge31];
-                    flag_nodes[edge31] = flag_nodes[edge32];
-                    flag_nodes[edge32] = i;
-                }
-
-            }
-
-
-            int edge41 = elem->nodes[3].id;
-            int edge42 = elem->nodes[7].id;
-            {
-                int z1 = coords[3 * edge41 + 2];
-                int z2 = coords[3 * edge42 + 2];
-                if (z2 > z1) {
-                    double tmp = z1;
-                    coords[3 * edge41 + 2] = z2;
-                    coords[3 * edge42 + 2] = tmp;
-                    int i = flag_nodes[edge41];
-                    flag_nodes[edge41] = flag_nodes[edge42];
-                    flag_nodes[edge42] = i;
-                }
-
-            }
-
-        }
-    }
-
-    gts_kdtree_destroy(kdtree);
-
-    nodes_b_mat.clear();
-
-    for (int i = 0; i < mesh->local_n_nodes; i++) {
-        //mesh->part_nodes[i] = flag_nodes[i];
-        if (flag_nodes[i] == 2)
-            nodes_b_mat.push_back(i);
-    }
+				if(oct->face[5]){
+					if(i==0){
+						elem->nodes[2].fixed=2;
+					}
+					if(i==1){
+						elem->nodes[3].fixed=2;
+					}
+					if(i==2){
+						elem->nodes[0].fixed=2;
+					}
+					if(i==3){
+						elem->nodes[1].fixed=2;
+					}
+				}
 
 
+				if(oct->face[0] || oct->face[1] || oct->face[2] || oct->face[3] || oct->face[4] || oct->face[5]){
+					//no central
+					if(i==0){
+						elem->nodes[6].fixed=2;
+					}
+					if(i==1){
+						elem->nodes[7].fixed=2;
+					}
+					if(i==2){
+						elem->nodes[4].fixed=2;
+					}
+					if(i==3){
+						elem->nodes[5].fixed=2;
+					}
+
+					if(i==4){
+						elem->nodes[2].fixed=2;
+					}
+					if(i==5){
+						elem->nodes[3].fixed=2;
+					}
+					if(i==6){
+						elem->nodes[0].fixed=2;
+					}
+					if(i==7){
+						elem->nodes[1].fixed=2;
+					}
+				}
+			}
+		}
+	}
+}
+
+void IdentifyMovableNodes(hexa_tree_t* mesh){
+
+	for(int iel = 0; iel < mesh->oct.elem_count; iel++){
+		octree_t *oct = (octree_t*) sc_array_index(&mesh->oct, iel);
+
+		for(int i=0; i<8; i++){
+			if(oct->id[i]!=-1){
+				octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, oct->id[i]);
+
+				//identificando as arestas interceptadas
+				//face superior
+				if(i==0 || i ==1){
+					if(elem->edge[0].ref){
+						oct->edge[0]=true;
+					}
+				}
+				if(i==1 || i ==2){
+					if(elem->edge[1].ref){
+						oct->edge[1]=true;
+					}
+				}
+				if(i==2 || i ==3){
+					if(elem->edge[2].ref){
+						oct->edge[2]=true;
+					}
+				}
+				if(i==3 || i ==0){
+					if(elem->edge[3].ref){
+						oct->edge[3]=true;
+					}
+				}
+
+				//face inferior
+				if(i==4 || i ==5){
+					if(elem->edge[8].ref){
+						oct->edge[8]=true;
+					}
+				}
+				if(i==5 || i ==6){
+					if(elem->edge[9].ref){
+						oct->edge[9]=true;
+					}
+				}
+				if(i==6 || i ==7){
+					if(elem->edge[10].ref){
+						oct->edge[10]=true;
+					}
+				}
+				if(i==7 || i ==4){
+					if(elem->edge[11].ref){
+						oct->edge[12]=true;
+					}
+				}
+
+				//arestas verticais
+				if(i==0 || i ==4){
+					if(elem->edge[4].ref){
+						oct->edge[4]=true;
+					}
+				}
+				if(i==1 || i ==5){
+					if(elem->edge[5].ref){
+						oct->edge[5]=true;
+					}
+				}
+				if(i==2 || i ==6){
+					if(elem->edge[6].ref){
+						oct->edge[6]=true;
+					}
+				}
+				if(i==3 || i ==7){
+					if(elem->edge[7].ref){
+						oct->edge[7]=true;
+					}
+				}
+			}
+		}
+
+		//identificando as faces
+		//x-
+		if(oct->edge[4] || oct->edge[11] || oct->edge[7] || oct->edge[3]){
+			oct->face[0]=true;
+		}
+		//x+
+		if(oct->edge[5] || oct->edge[1] || oct->edge[6] || oct->edge[9]){
+			oct->face[1]=true;
+		}
+		//y-
+		if(oct->edge[0] || oct->edge[5] || oct->edge[8] || oct->edge[4]){
+			oct->face[2]=true;
+		}
+		//y+
+		if(oct->edge[2] || oct->edge[6] || oct->edge[10] || oct->edge[7]){
+			oct->face[3]=true;
+		}
+		//z-
+		if(oct->edge[8] || oct->edge[9] || oct->edge[10] || oct->edge[11]){
+			oct->face[4]=true;
+		}
+		//z+
+		if(oct->edge[0] || oct->edge[1] || oct->edge[2] || oct->edge[3]){
+			oct->face[5]=true;
+		}
+	}
+}
+
+void DoOctree(hexa_tree_t* mesh){
+
+	sc_array_init(&mesh->oct, sizeof(octree_t));
+	sc_array_reset(&mesh->oct);
+	int z_min = 0;
+
+	for(int iel = 0; iel < mesh->elements.elem_count; iel++){
+		octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, iel);
+		if(elem->pad == -1){
+			z_min = max(elem->z,z_min);
+		}
+	}
+
+	printf("z maximo foi de %d\n",z_min+1);
+	////////////////////////////////////////////
+	//add elements to create the octree structure
+	bool clamped= true;
+	sc_hash_array_t * hash = (sc_hash_array_t *)sc_hash_array_new(sizeof (octant_t), el_hash_id, el_equal_id, &clamped);
+	octant_t* r;
+
+	//it should contain 8 or 4 or 2 elements
+	for(int ie=0; ie<mesh->elements.elem_count; ie++){
+
+		octant_t* cut = (octant_t*) sc_array_index(&mesh->elements, ie);
+
+		bool tre= true;
+		bool tt = true;
+		if(cut->z<=(z_min+1)){
+
+			//printf("Eu sou o elemento numero:%d ",cut->id);
+			size_t position1;
+			octant_t key1;
+			key1.id = cut->id;
+
+			tre = sc_hash_array_lookup(hash, &key1, &position1);
+
+			if(tre){
+
+			}else{
+				//create the octree
+				octree_t * oc = (octree_t*) sc_array_push(&mesh->oct);
+				// fill with -1
+				for(int i = 0; i<8; i++){
+					oc->id[i] = -1;
+					oc->mat[i] = -1;
+				}
+
+				//iniciando a busca pelos vizinhos
+				for(int iel = 0; iel < mesh->elements.elem_count; iel++){
+
+					octant_t key;
+					size_t position;
+
+					octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, iel);
+					key.id = elem->id;
+
+					if(elem->z<=(z_min+3)){
+
+						tt = sc_hash_array_lookup(hash, &key, &position);
+
+						if(!tt){
+							//ele mesmo
+							if(cut->id==elem->id){
+								r = (octant_t*) sc_hash_array_insert_unique(hash,&key,&position);
+								oc->id[0] = elem->id;
+								if(r!=NULL){
+									r->id= elem->id;
+								}else{
+									r =  (octant_t*) sc_array_index(&hash->a,position);
+								}
+							}//x+
+
+							if(cut->nodes[1].id == elem->nodes[0].id && cut->nodes[2].id == elem->nodes[3].id &&
+									cut->nodes[5].id==elem->nodes[4].id && cut->nodes[6].id==elem->nodes[7].id){
+								oc->id[1] = elem->id;
+								r = (octant_t*) sc_hash_array_insert_unique(hash,&key,&position);
+								if(r!=NULL){
+									r->id= elem->id;
+								}else{
+									r =  (octant_t*) sc_array_index(&hash->a,position);
+								}
+							}//x+y+
+
+							if(cut->nodes[2].id==elem->nodes[0].id && cut->nodes[6].id==elem->nodes[4].id){
+								oc->id[2]= elem->id;
+								r = (octant_t*) sc_hash_array_insert_unique(hash,&key,&position);
+								if(r!=NULL){
+									r->id= elem->id;
+								}else{
+									r =  (octant_t*) sc_array_index(&hash->a,position);
+								}
+							}//y+
+
+							if(cut->nodes[3].id==elem->nodes[0].id && cut->nodes[2].id==elem->nodes[1].id &&
+									cut->nodes[6].id==elem->nodes[5].id && cut->nodes[7].id==elem->nodes[4].id){
+								oc->id[3]= elem->id;
+								r = (octant_t*) sc_hash_array_insert_unique(hash,&key,&position);
+								if(r!=NULL){
+									r->id= elem->id;
+								}else{
+									r =  (octant_t*) sc_array_index(&hash->a,position);
+								}
+							}//z-
+
+							if(cut->nodes[4].id==elem->nodes[0].id && cut->nodes[5].id==elem->nodes[1].id &&
+									cut->nodes[6].id==elem->nodes[2].id && cut->nodes[7].id==elem->nodes[3].id){
+								oc->id[4]= elem->id;
+								r = (octant_t*) sc_hash_array_insert_unique(hash,&key,&position);
+								if(r!=NULL){
+									r->id= elem->id;
+								}else{
+									r =  (octant_t*) sc_array_index(&hash->a,position);
+								}
+							}//z- x+
+
+							if(cut->nodes[5].id==elem->nodes[0].id && cut->nodes[6].id==elem->nodes[3].id){
+								oc->id[5]= elem->id;
+								r = (octant_t*) sc_hash_array_insert_unique(hash,&key,&position);
+								if(r!=NULL){
+									r->id= elem->id;
+								}else{
+									r =  (octant_t*) sc_array_index(&hash->a,position);
+								}
+							}//z- x+ y+
+
+							if(cut->nodes[6].id==elem->nodes[0].id){
+								oc->id[6]= elem->id;
+								r = (octant_t*) sc_hash_array_insert_unique(hash,&key,&position);
+								if(r!=NULL){
+									r->id= elem->id;
+								}else{
+									r =  (octant_t*) sc_array_index(&hash->a,position);
+								}
+							} //z- y+
+
+							if(cut->nodes[6].id==elem->nodes[1].id && cut->nodes[7].id==elem->nodes[0].id){
+								oc->id[7]= elem->id;
+								r = (octant_t*) sc_hash_array_insert_unique(hash,&key,&position);
+								if(r!=NULL){
+									r->id= elem->id;
+								}else{
+									r =  (octant_t*) sc_array_index(&hash->a,position);
+								}
+							}
+
+						}
+					}
+				}
+			}
+		}
+
+	}
+	////////
+	//sc_hash_array_truncate(hash);
+	sc_hash_array_destroy (hash);
+
+	/*
+	//auxiliar para limpar mesh->oct
+	std::vector<int> ids;
+	std::vector<bool> faces;
+	std::vector<bool> edges;
+	std::vector<bool> cortado;
+	 */
+
+	printf("Presenca de %d octrees ao total\n",mesh->oct.elem_count);
+	//std::vector<int> to_del;
+
+	if(true){
+		int count = 0;
+		//seleciona apenas os octantes cortados
+		for(int iel = 0; iel< mesh->oct.elem_count; iel++){
+			octree_t *oc = (octree_t*) sc_array_index(&mesh->oct, iel);
+			//inicia com arestas e faces como nao cortadas
+			for(int i = 0; i<12;i++){
+				oc->edge[i] = false;
+			}
+			for(int i = 0; i<6;i++){
+				oc->face[i] = false;
+			}
+
+			oc->cut = false;
+			for(int i = 0; i<8; i++){
+				if(oc->id[i]!=-1){
+					octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, oc->id[i]);
+					if(elem->pad==-1){
+						oc->cut = true;
+					}
+				}
+			}
+
+			if(oc->cut){
+				for(int i = 0; i<8; i++){
+					//printf("Octree numero:%d, elemento numero:%d\n",iel,oc->id[i]);
+					if(oc->id[i]!=-1){
+						octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, oc->id[i]);
+						elem->pad = iel+10;
+						//fix nodes
+						if(i==0){
+							//printf("Entrei para fixar o 0 para o elemento numero:%d\n",elem->id);
+							elem->nodes[0].fixed=1;
+						}else if(i==1){
+							//printf("Entrei para fixar o 1 para o elemento numero:%d\n",elem->id);
+							elem->nodes[1].fixed=1;
+						}else if(i==2){
+							//printf("Entrei para fixar o 2 para o elemento numero:%d\n",elem->id);
+							elem->nodes[2].fixed=1;
+						}else if(i==3){
+							//printf("Entrei para fixar o 3 para o elemento numero:%d\n",elem->id);
+							elem->nodes[3].fixed=1;
+						}else if(i==4){
+							//printf("Entrei para fixar o 4 para o elemento numero:%d\n",elem->id);
+							elem->nodes[4].fixed=1;
+						}else if(i==5){
+							//printf("Entrei para fixar o 5 para o elemento numero:%d\n",elem->id);
+							elem->nodes[5].fixed=1;
+						}else if(i==6){
+							//printf("Entrei para fixar o 6 para o elemento numero:%d\n",elem->id);
+							elem->nodes[6].fixed=1;
+						}else if(i==7){
+							//printf("Entrei para fixar o 7 para o elemento numero:%d\n",elem->id);
+							elem->nodes[7].fixed=1;
+						}
+					}
+				}
+			}
+			/*
+			//adiciona os não cortados para serem eliminados da estrutura de octree...
+			if(!oc->cut){
+				to_del.push_back(iel);
+			}
+
+			for(int iel = to_del.size(); iel>0 ;iel--){
+
+
+			}
+
+			printf("Presenca de %d octrees interceptados\n",mesh->oct.elem_count);
+			 */
+		}
+	}
+
+	//std::sort(to_del.begin(), to_del.end());
+
+	if(0){
+		for(int iel = 0; iel< mesh->oct.elem_count; iel++){
+			octree_t *oc = (octree_t*) sc_array_index(&mesh->oct, iel);
+			printf("Octree numero:%d, foi cortado?:%d\n",iel,oc->cut);
+			printf("Ids dos elementos: ");
+			for(int i = 0; i<8; i++){
+				printf("%d ",oc->id[i]);
+			}
+			printf("\n");
+			printf("Edges do octree: ");
+
+			for(int i = 0; i<12; i++){
+				printf("%d ",oc->edge[i]);
+			}
+			printf("\n");
+			printf("Faces do octree: ");
+
+			for(int i = 0; i<6; i++){
+				printf("%d ",oc->face[i]);
+			}
+			printf("\n");
+		}
+	}
 }
 
 void MovingNodes(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& nodes_b_mat, const char* surface) {
 
-    int8_t* flag_nodes = (int8_t*) malloc(sizeof (int8_t) * mesh->local_n_nodes);
+	int8_t* flag_nodes = (int8_t*) malloc(sizeof (int8_t) * mesh->local_n_nodes);
+	GtsSurface *bathymetry     = SurfaceRead(surface);
+	GNode      *bbt_bathymetry = gts_bb_tree_surface(bathymetry);
 
-    GtsSurface *bathymetry     = SurfaceRead(surface);
-    GNode      *bbt_bathymetry = gts_bb_tree_surface(bathymetry);
+	time_t tstart, tend;
 
+	memset(flag_nodes, 0, sizeof (int8_t) * mesh->local_n_nodes);
 
-    FindNodesBetweenMaterials(mesh, coords, nodes_b_mat, flag_nodes);
-    ProjectNodes(mesh, coords, nodes_b_mat, flag_nodes);
+	tstart = time(0);
+	printf("Building the octree structure...\n");
+	DoOctree(mesh); //preciso jogar fora os octrees que eu não uso... teria que remover eles
+	tend = time(0);
+	cout << "Tempo para DoOctree "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
-    for (int iel = 0; iel < mesh->elements.elem_count; ++iel) {
-        octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, iel);
+	tstart = time(0);
+	printf("Identifying the movable nodes...\n");
+	IdentifyMovableNodes(mesh);
+	tend = time(0);
+	cout << "Tempo para IdentifyMovableNodes "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
-        if (elem->n_mat == 1) {
-            
-            GtsPoint * point;
-            //getting the baricenter of the upper surface;
-            //find the centroid of the upper surface
-            double cord_in_x[8], cord_in_y[8], cord_in_z[8];
-            //add the nodes in the coord vector
-            for (int ii = 0; ii < 8; ii++) {
-                cord_in_x[ii] = coords[3 * elem->nodes[ii].id];
-                cord_in_y[ii] = coords[3 * elem->nodes[ii].id + 1];
-                cord_in_z[ii] = coords[3 * elem->nodes[ii].id + 2];
-            }
+	tstart = time(0);
+	printf("Free the movable nodes...\n");
+	FreeMovableNodes(mesh);
+	tend = time(0);
+	cout << "Tempo para FreeMovableNodes "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
-            double cord_in_ref[3];
-            cord_in_ref[0] = 0;
-            cord_in_ref[1] = 0;
-            cord_in_ref[2] = 0;
-            point = LinearMapHex(cord_in_ref, cord_in_x, cord_in_y, cord_in_z);
+	tstart = time(0);
+	printf("Tenho bugs aqui para cima, preciso achar eles ainda...\n");
+	printf("Make the projection of the free nodes in to the surface...\n");
+	nodes_b_mat.clear();
+	ProjectFreeNodes(mesh,coords,nodes_b_mat);
+	tend = time(0);
+	cout << "Tempo para ProjectFreeNodes "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
-            bool over = is_point_over_surface(point, bbt_bathymetry);
+	//FindNodesBetweenMaterials(mesh, coords, nodes_b_mat, flag_nodes);
+	//ProjectNodes(mesh, coords, nodes_b_mat, flag_nodes);
 
-            if (!over) elem->n_mat = 0;
-            
-            gts_object_destroy(GTS_OBJECT(point));
+	for (int i = 0; i < mesh->local_n_nodes; i++) {
+		flag_nodes[i]=0;
+	}
 
-        }
-    }
+	//verifica a criacao os nos livres e fixos na criacao dos octrees
+	if(false){
+		//std::cout <<  mesh->elements.elem_count << " coisinhas para mover" << std::endl;
+		for (int iel = 0; iel < mesh->elements.elem_count; ++iel) {
+			octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, iel);
+			for(int ino = 0; ino<8;ino++){
+				if(flag_nodes[elem->nodes[ino].id]==2){
 
-    gts_bb_tree_destroy(bbt_bathymetry, TRUE);
-    
-    gts_object_destroy(GTS_OBJECT(bathymetry));
-    
-    free(flag_nodes);
+				}else{
+					flag_nodes[elem->nodes[ino].id] = elem->nodes[ino].fixed;
+				}
+			}
+		}
 
+		for (int i = 0; i < mesh->local_n_nodes; i++) {
+			mesh->part_nodes[i] = flag_nodes[i];
+		}
+	}
+
+	//verifica se os nos movidos estao fixos...
+	for(int i = 0; i<nodes_b_mat.size();i++){
+		mesh->part_nodes[nodes_b_mat[i]] = 1;
+	}
+
+	gts_bb_tree_destroy(bbt_bathymetry, TRUE);
+
+	gts_object_destroy(GTS_OBJECT(bathymetry));
+
+	free(flag_nodes);
 }
-

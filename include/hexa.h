@@ -24,6 +24,7 @@ typedef struct
 	int32_t id;
 	int32_t x,y,z;
 	int color;
+	int fixed;
 } octant_node_t;
 
 typedef struct
@@ -37,6 +38,7 @@ typedef struct
 {
 	uint64_t id;
 	int nodes[4];
+	bool ref;
 } octant_face_t;
 
 typedef struct
@@ -53,10 +55,14 @@ typedef struct
 	int32_t    x,y,z;
 	int8_t     level;
 	int     pad;
+	int     cut;
 	int     tem;
+	int     inipad;
+	int     initem;
 	int8_t     pml_id;
 	int        n_mat;
 	unsigned int edge_id[12];
+	unsigned int father;
 	bool edge_ref[12];
 	bool ghost;
 	octant_node_t nodes[8];
@@ -64,6 +70,15 @@ typedef struct
 	octant_face_t face[6];
 	int64_t    id;
 } octant_t;
+
+typedef struct
+{
+	int64_t id[8];
+	bool    cut;
+	bool    face[6];
+	bool    edge[12];
+	int     mat[8];
+} octree_t;
 
 typedef struct shared_node
 {
@@ -139,6 +154,7 @@ typedef struct {
 	sc_array_t      nodes;
 	sc_array_t      faces;
 	sc_array_t      vertex;
+	sc_array_t		oct;
 
 	sc_array_t      shared_nodes;
 	sc_array_t      shared_edges;
@@ -148,7 +164,7 @@ typedef struct {
 
 	sc_array_t      edges_ref;
 	int64_t *global_id;
-	//uint64_t *global_edge_id;
+
 	int32_t *part_nodes;
 	int32_t ncellx;
 	int32_t ncelly;
@@ -169,9 +185,9 @@ typedef struct {
 	comm_map_t comm_map;
 	comm_map_t  comm_map_edge;
 #ifdef HEXA_DEBUG_
-FILE* fdbg;
+	FILE* fdbg;
 #endif
-GeometryData gdata;
+	GeometryData gdata;
 
 } hexa_tree_t;
 
@@ -211,6 +227,10 @@ unsigned processors_hash_fn (const void *v, const void *u);
 
 int processors_equal_fn (const void *v1, const void *v2, const void *u);
 
+unsigned edge_hash_fn(const void *v, const void *u);
+
+int edge_equal_fn(const void *v, const void *u, const void *w);
+
 void hexa_insert_shared_node(sc_hash_array_t    *shared_nodes, octant_node_t* node, int processor);
 
 unsigned node_hash_fn (const void *v, const void *u);
@@ -220,6 +240,8 @@ int node_equal_fn (const void *v1, const void *v2, const void *u);
 void hexa_mesh_destroy(hexa_tree_t* mesh);
 
 int node_comp (const void *v, const void *u);
+
+GtsPoint* SegmentTriangleIntersection(GtsSegment * s, GtsTriangle * t);
 
 //void communicate_global_ids(hexa_tree_t* mesh);
 

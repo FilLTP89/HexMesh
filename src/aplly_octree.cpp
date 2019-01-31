@@ -16,18 +16,18 @@ using namespace std;
 #include "hilbert.h"
 #include "refinement.h"
 
-typedef struct {
-	bitmask_t coord[3];
-	int node_id;
-} node_t;
-
 unsigned edge_hash_fn(const void *v, const void *u) {
 	const node_t *q = (const node_t*) v;
-	uint32_t a, b, c;
+	uint64_t a, b, c;
 
-	a = (uint32_t) q->coord[0];
-	b = (uint32_t) q->coord[1];
-	c = (uint32_t) q->coord[2];
+	//a = (uint64_t) q->coord[0];
+	//b = (uint64_t) q->coord[1];
+	//c = (uint64_t) q->coord[2];
+
+	a = (double_t) q->coord[0];
+	b = (double_t) q->coord[1];
+	c = (double_t) q->coord[2];
+
 	sc_hash_mix(a, b, c);
 	sc_hash_final(a, b, c);
 	return (unsigned) c;
@@ -61,15 +61,16 @@ int node_shared_equal_fn(const void *v, const void *u, const void *w) {
 	return (unsigned) (e1->id == e2->id);
 }
 
-int AddPoint(hexa_tree_t* mesh, double* nodes, sc_hash_array_t* hash, GtsPoint *p, std::vector<double> &coords) {
+int AddPoint(hexa_tree_t* mesh, sc_hash_array_t* hash, GtsPoint *p, std::vector<double> &coords) {
 	size_t position;
 	node_t *r;
 	node_t key;
-	key.coord[0] = nodes[0];
-	key.coord[1] = nodes[1];
-	key.coord[2] = nodes[2];
+	key.coord[0] = p->x;
+	key.coord[1] = p->y;
+	key.coord[2] = p->z;
 
 	r = (node_t*) sc_hash_array_insert_unique(hash, &key, &position);
+
 	if (r != NULL) {
 		r->coord[0] = key.coord[0];
 		r->coord[1] = key.coord[1];
@@ -81,6 +82,7 @@ int AddPoint(hexa_tree_t* mesh, double* nodes, sc_hash_array_t* hash, GtsPoint *
 		n->y = -1;
 		n->z = -1;
 		n->color = -1;
+		n->fixed = 0;
 
 		coords.push_back(p->x);
 		coords.push_back(p->y);
@@ -323,36 +325,42 @@ vector<int> RotateHex(int* rot, int* sym){
 	return order;
 }
 
-void CopyPropEl(hexa_tree_t* mesh, int id, octant_t *elem1){
+void CopyPropEl(hexa_tree_t* mesh, int id, octant_t *elem1, int* node_id_ref){
 
 	octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, id);
 
 	elem1->level = elem->level+1;
 	elem1->tem = elem->tem;
 	elem1->pad = elem->pad;
+	elem1->inipad = elem->inipad;
+	elem1->initem = elem->initem;
 	elem1->n_mat = elem->n_mat;
 	elem1->pml_id = elem->pml_id;
 	elem1->ghost = elem->ghost;
-
+	elem1->father = elem->id;
+	//std::cout << "id do el: "<< elem->id << std::endl;
 	//TODO try to correct the index of the nodes and elements because of the 27-tree
 	for(int i=0; i<8; i++){
 		elem1->nodes[i].color = elem->nodes[i].color;
+		elem1->nodes[i].fixed = 0;
 		elem1->nodes[i].x = elem->nodes[i].x;
 		elem1->nodes[i].y = elem->nodes[i].y;
 		elem1->nodes[i].z = elem->nodes[i].z;
+		//std::cout << "id do no: "<< elem->nodes[i].id << std::endl;
 	}
 	elem1->x=elem->x;
 	elem1->y=elem->y;
 	elem1->z=elem->z;
-
-
 }
 
-void ApplyTemplate1(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& elements_ids, int iel, sc_hash_array_t* hash_nodes, double step){
+
+
+void ApplyTemplate1(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& elements_ids, int iel, sc_hash_array_t* hash_nodes, double step, int* node_id_ref){
 
 	octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, elements_ids[iel]);
 
-	int id = elements_ids[iel];
+	//int id = elements_ids[iel];
+	int id = elem->id;
 
 	double cord_in_ref[3];
 	cord_in_ref[0] = 0;
@@ -779,11 +787,7 @@ void ApplyTemplate1(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<
 				cord_in_ref[2] = local_ref[i][ii][2];
 
 				point[ii] = LinearMapHex(cord_in_ref, cord_in_x,cord_in_y,cord_in_z);
-				double var[3];
-				var[0] = point[ii]->x;
-				var[1] = point[ii]->y;
-				var[2] = point[ii]->z;
-				conn_p[ii] = AddPoint( mesh, var, hash_nodes, point[ii] , coords);
+				conn_p[ii] = AddPoint( mesh, hash_nodes, point[ii] , coords);
 				//fprintf(mesh->fdbg,"coord out: %f, %f, %f, in the node: %d\n",var[0],var[1],var[2],conn_p[ii]);
 
 			}
@@ -803,7 +807,7 @@ void ApplyTemplate1(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<
 			elem1->nodes[6].id = conn_p[6];
 			elem1->nodes[7].id = conn_p[7];
 
-			CopyPropEl(mesh,id,elem1);
+			CopyPropEl(mesh,id,elem1,node_id_ref);
 
 		}else{
 			octant_t* elem2 = (octant_t*) sc_array_push(&mesh->elements);
@@ -818,18 +822,21 @@ void ApplyTemplate1(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<
 			elem2->nodes[6].id = conn_p[6];
 			elem2->nodes[7].id = conn_p[7];
 
-			CopyPropEl(mesh,id,elem2);
+			elem2->id = mesh->elements.elem_count;
+
+			CopyPropEl(mesh,id,elem2,node_id_ref);
 
 		}
 	}
 
 }
 
-void ApplyTemplate2(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& elements_ids, int iel, sc_hash_array_t* hash_nodes, double step){
+void ApplyTemplate2(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& elements_ids, int iel, sc_hash_array_t* hash_nodes, double step, int* node_id_ref){
 
 	octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, elements_ids[iel]);
 
-	int id = elements_ids[iel];
+	//int id = elements_ids[iel];
+	int id = elem->id;
 
 	double cord_in_ref[3];
 	cord_in_ref[0] = 0;
@@ -1045,11 +1052,7 @@ void ApplyTemplate2(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<
 				cord_in_ref[2] = local_ref[i][ii][2];
 
 				point[ii] = LinearMapHex(cord_in_ref, cord_in_x,cord_in_y,cord_in_z);
-				double var[3];
-				var[0] = point[ii]->x;
-				var[1] = point[ii]->y;
-				var[2] = point[ii]->z;
-				conn_p[ii] = AddPoint( mesh, var, hash_nodes, point[ii] , coords);
+				conn_p[ii] = AddPoint( mesh, hash_nodes, point[ii] , coords);
 				//fprintf(mesh->fdbg,"coord out: %f, %f, %f, in the node: %d\n",var[0],var[1],var[2],conn_p[ii]);
 
 			}
@@ -1069,7 +1072,7 @@ void ApplyTemplate2(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<
 			elem1->nodes[6].id = conn_p[6];
 			elem1->nodes[7].id = conn_p[7];
 
-			CopyPropEl(mesh,id,elem1);
+			CopyPropEl(mesh,id,elem1,node_id_ref);
 
 		}else{
 			octant_t* elem2 = (octant_t*) sc_array_push(&mesh->elements);
@@ -1084,19 +1087,20 @@ void ApplyTemplate2(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<
 			elem2->nodes[6].id = conn_p[6];
 			elem2->nodes[7].id = conn_p[7];
 
-			CopyPropEl(mesh,id,elem2);
+			elem2->id = mesh->elements.elem_count;
+
+			CopyPropEl(mesh,id,elem2,node_id_ref);
 
 		}
 	}
 }
 
-void ApplyTemplate3(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& elements_ids, int iel, sc_hash_array_t* hash_nodes, double step){
+void ApplyTemplate3(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& elements_ids, int iel, sc_hash_array_t* hash_nodes, double step, int* node_id_ref){
 
 	octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, elements_ids[iel]);
 
-	int id = elements_ids[iel];
-
-
+	//int id = elements_ids[iel];
+	int id = elem->id;
 
 	double cord_in_ref[3];
 	cord_in_ref[0] = 0;
@@ -1489,11 +1493,7 @@ void ApplyTemplate3(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<
 				cord_in_ref[2] = local_ref[i][ii][2];
 
 				point[ii] = LinearMapHex(cord_in_ref, cord_in_x,cord_in_y,cord_in_z);
-				double var[3];
-				var[0] = point[ii]->x;
-				var[1] = point[ii]->y;
-				var[2] = point[ii]->z;
-				conn_p[ii] = AddPoint( mesh, var, hash_nodes, point[ii] , coords);
+				conn_p[ii] = AddPoint( mesh, hash_nodes, point[ii] , coords);
 				//fprintf(mesh->fdbg,"coord out: %f, %f, %f, in the node: %d\n",var[0],var[1],var[2],conn_p[ii]);
 
 			}
@@ -1513,7 +1513,7 @@ void ApplyTemplate3(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<
 			elem1->nodes[6].id = conn_p[6];
 			elem1->nodes[7].id = conn_p[7];
 
-			CopyPropEl(mesh,id,elem1);
+			CopyPropEl(mesh,id,elem1,node_id_ref);
 
 		}else{
 			octant_t* elem2 = (octant_t*) sc_array_push(&mesh->elements);
@@ -1528,18 +1528,20 @@ void ApplyTemplate3(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<
 			elem2->nodes[6].id = conn_p[6];
 			elem2->nodes[7].id = conn_p[7];
 
-			CopyPropEl(mesh,id,elem2);
+			elem2->id = mesh->elements.elem_count;
+
+			CopyPropEl(mesh,id,elem2,node_id_ref);
 
 		}
 	}
 }
 
-void ApplyTemplate4(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& elements_ids, int iel, sc_hash_array_t* hash_nodes, double step){
+void ApplyTemplate4(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& elements_ids, int iel, sc_hash_array_t* hash_nodes, double step, int* node_id_ref){
 
 	octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, elements_ids[iel]);
 
-	int id = elements_ids[iel];
-
+	//int id = elements_ids[iel];
+	int id = elem->id;
 
 	double cord_in_ref[3];
 	cord_in_ref[0] = 0;
@@ -1966,11 +1968,7 @@ void ApplyTemplate4(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<
 				cord_in_ref[2] = local_ref[i][ii][2];
 
 				point[ii] = LinearMapHex(cord_in_ref, cord_in_x,cord_in_y,cord_in_z);
-				double var[3];
-				var[0] = point[ii]->x;
-				var[1] = point[ii]->y;
-				var[2] = point[ii]->z;
-				conn_p[ii] = AddPoint( mesh, var, hash_nodes, point[ii] , coords);
+				conn_p[ii] = AddPoint( mesh, hash_nodes, point[ii] , coords);
 				//fprintf(mesh->fdbg,"coord out: %f, %f, %f, in the node: %d\n",var[0],var[1],var[2],conn_p[ii]);
 
 			}
@@ -1990,7 +1988,7 @@ void ApplyTemplate4(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<
 			elem1->nodes[6].id = conn_p[6];
 			elem1->nodes[7].id = conn_p[7];
 
-			CopyPropEl(mesh,id,elem1);
+			CopyPropEl(mesh,id,elem1,node_id_ref);
 
 		}else{
 			octant_t* elem2 = (octant_t*) sc_array_push(&mesh->elements);
@@ -2005,17 +2003,20 @@ void ApplyTemplate4(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<
 			elem2->nodes[6].id = conn_p[6];
 			elem2->nodes[7].id = conn_p[7];
 
-			CopyPropEl(mesh,id,elem2);
+			elem2->id = mesh->elements.elem_count;
+
+			CopyPropEl(mesh,id,elem2,node_id_ref);
 
 		}
 	}
 }
 
-void ApplyTemplate5(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& elements_ids, int iel, sc_hash_array_t* hash_nodes, double step){
+void ApplyTemplate5(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& elements_ids, int iel, sc_hash_array_t* hash_nodes, double step, int* node_id_ref){
 
 	octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, elements_ids[iel]);
 
-	int id = elements_ids[iel];
+	//int id = elements_ids[iel];
+	int id = elem->id;
 
 	double cord_in_ref[3];
 	cord_in_ref[0] = 0;
@@ -2610,11 +2611,7 @@ void ApplyTemplate5(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<
 				cord_in_ref[2] = local_ref[i][ii][2];
 
 				point[ii] = LinearMapHex(cord_in_ref, cord_in_x,cord_in_y,cord_in_z);
-				double var[3];
-				var[0] = point[ii]->x;
-				var[1] = point[ii]->y;
-				var[2] = point[ii]->z;
-				conn_p[ii] = AddPoint( mesh, var, hash_nodes, point[ii] , coords);
+				conn_p[ii] = AddPoint( mesh, hash_nodes, point[ii] , coords);
 				//fprintf(mesh->fdbg,"coord out: %f, %f, %f, in the node: %d\n",var[0],var[1],var[2],conn_p[ii]);
 
 			}
@@ -2634,7 +2631,7 @@ void ApplyTemplate5(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<
 			elem1->nodes[6].id = conn_p[6];
 			elem1->nodes[7].id = conn_p[7];
 
-			CopyPropEl(mesh,id,elem1);
+			CopyPropEl(mesh,id,elem1,node_id_ref);
 
 		}else{
 			octant_t* elem2 = (octant_t*) sc_array_push(&mesh->elements);
@@ -2649,7 +2646,9 @@ void ApplyTemplate5(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<
 			elem2->nodes[6].id = conn_p[6];
 			elem2->nodes[7].id = conn_p[7];
 
-			CopyPropEl(mesh,id,elem2);
+			elem2->id = mesh->elements.elem_count;
+
+			CopyPropEl(mesh,id,elem2,node_id_ref);
 
 		}
 
@@ -2657,11 +2656,12 @@ void ApplyTemplate5(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<
 
 }
 
-void ApplyTemplate6(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& elements_ids, int iel, sc_hash_array_t* hash_nodes, double step){
+void ApplyTemplate6(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& elements_ids, int iel, sc_hash_array_t* hash_nodes, double step, int* node_id_ref){
 
 	octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, elements_ids[iel]);
 
-	int id = elements_ids[iel];
+	//int id = elements_ids[iel];
+	int id = elem->id;
 
 	double cord_in_ref[3];
 	cord_in_ref[0] = 0;
@@ -3253,11 +3253,7 @@ void ApplyTemplate6(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<
 				cord_in_ref[2] = local_ref[i][ii][2];
 
 				point[ii] = LinearMapHex(cord_in_ref, cord_in_x,cord_in_y,cord_in_z);
-				double var[3];
-				var[0] = point[ii]->x;
-				var[1] = point[ii]->y;
-				var[2] = point[ii]->z;
-				conn_p[ii] = AddPoint( mesh, var, hash_nodes, point[ii] , coords);
+				conn_p[ii] = AddPoint( mesh, hash_nodes, point[ii] , coords);
 				//fprintf(mesh->fdbg,"coord out: %f, %f, %f, in the node: %d\n",var[0],var[1],var[2],conn_p[ii]);
 
 			}
@@ -3277,7 +3273,7 @@ void ApplyTemplate6(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<
 			elem1->nodes[6].id = conn_p[6];
 			elem1->nodes[7].id = conn_p[7];
 
-			CopyPropEl(mesh,id,elem1);
+			CopyPropEl(mesh,id,elem1,node_id_ref);
 
 		}else{
 			octant_t* elem2 = (octant_t*) sc_array_push(&mesh->elements);
@@ -3292,17 +3288,21 @@ void ApplyTemplate6(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<
 			elem2->nodes[6].id = conn_p[6];
 			elem2->nodes[7].id = conn_p[7];
 
-			CopyPropEl(mesh,id,elem2);
+			elem2->id = mesh->elements.elem_count;
+
+			CopyPropEl(mesh,id,elem2,node_id_ref);
 
 		}
 	}
 }
 
-void ApplyTemplate7(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& elements_ids, int iel, sc_hash_array_t* hash_nodes, double step){
+void ApplyTemplate7(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& elements_ids, int iel, sc_hash_array_t* hash_nodes, double step, int* node_id_ref){
 
 	octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, elements_ids[iel]);
 
-	int id = elements_ids[iel];
+	//int id = elements_ids[iel];
+	int id = elem->id;
+
 	double cord_in_ref[3];
 	cord_in_ref[0] = 0;
 	cord_in_ref[1] = 0;
@@ -3730,11 +3730,7 @@ void ApplyTemplate7(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<
 				cord_in_ref[2] = local_ref[i][ii][2];
 
 				point[ii] = LinearMapHex(cord_in_ref, cord_in_x,cord_in_y,cord_in_z);
-				double var[3];
-				var[0] = point[ii]->x;
-				var[1] = point[ii]->y;
-				var[2] = point[ii]->z;
-				conn_p[ii] = AddPoint( mesh, var, hash_nodes, point[ii] , coords);
+				conn_p[ii] = AddPoint( mesh, hash_nodes, point[ii] , coords);
 				//fprintf(mesh->fdbg,"coord out: %f, %f, %f, in the node: %d\n",var[0],var[1],var[2],conn_p[ii]);
 
 			}
@@ -3754,7 +3750,7 @@ void ApplyTemplate7(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<
 			elem1->nodes[6].id = conn_p[6];
 			elem1->nodes[7].id = conn_p[7];
 
-			CopyPropEl(mesh,id,elem1);
+			CopyPropEl(mesh,id,elem1,node_id_ref);
 
 		}else{
 			octant_t* elem2 = (octant_t*) sc_array_push(&mesh->elements);
@@ -3769,18 +3765,21 @@ void ApplyTemplate7(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<
 			elem2->nodes[6].id = conn_p[6];
 			elem2->nodes[7].id = conn_p[7];
 
-			CopyPropEl(mesh,id,elem2);
+			elem2->id = mesh->elements.elem_count;
+
+			CopyPropEl(mesh,id,elem2,node_id_ref);
 
 		}
 	}
 
 }
 
-void ApplyTemplate8(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& elements_ids, int iel, sc_hash_array_t* hash_nodes, double step){
+void ApplyTemplate8(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& elements_ids, int iel, sc_hash_array_t* hash_nodes, double step, int* node_id_ref){
 
 	octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, elements_ids[iel]);
 
-	int id = elements_ids[iel];
+	//int id = elements_ids[iel];
+	int id = elem->id;
 
 	double cord_in_ref[3];
 	cord_in_ref[0] = 0;
@@ -4193,11 +4192,7 @@ void ApplyTemplate8(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<
 				cord_in_ref[2] = local_ref[i][ii][2];
 
 				point[ii] = LinearMapHex(cord_in_ref, cord_in_x,cord_in_y,cord_in_z);
-				double var[3];
-				var[0] = point[ii]->x;
-				var[1] = point[ii]->y;
-				var[2] = point[ii]->z;
-				conn_p[ii] = AddPoint( mesh, var, hash_nodes, point[ii] , coords);
+				conn_p[ii] = AddPoint( mesh, hash_nodes, point[ii] , coords);
 				//fprintf(mesh->fdbg,"coord out: %f, %f, %f, in the node: %d\n",var[0],var[1],var[2],conn_p[ii]);
 
 			}
@@ -4217,7 +4212,7 @@ void ApplyTemplate8(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<
 			elem1->nodes[6].id = conn_p[6];
 			elem1->nodes[7].id = conn_p[7];
 
-			CopyPropEl(mesh,id,elem1);
+			CopyPropEl(mesh,id,elem1,node_id_ref);
 
 		}else{
 			octant_t* elem2 = (octant_t*) sc_array_push(&mesh->elements);
@@ -4232,18 +4227,20 @@ void ApplyTemplate8(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<
 			elem2->nodes[6].id = conn_p[6];
 			elem2->nodes[7].id = conn_p[7];
 
-			CopyPropEl(mesh,id,elem2);
+			elem2->id = mesh->elements.elem_count;
+
+			CopyPropEl(mesh,id,elem2,node_id_ref);
 
 		}
 	}
 }
 
-void ApplyTemplate9(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& elements_ids, int iel, sc_hash_array_t* hash_nodes, double step){
+void ApplyTemplate9(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& elements_ids, int iel, sc_hash_array_t* hash_nodes, double step, int* node_id_ref){
 
 	octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, elements_ids[iel]);
 
-	int id = elements_ids[iel];
-
+	//int id = elements_ids[iel];
+	int id = elem->id;
 
 	double cord_in_ref[3];
 	cord_in_ref[0] = 0;
@@ -5430,11 +5427,7 @@ void ApplyTemplate9(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<
 				cord_in_ref[2] = local_ref[i][ii][2];
 
 				point[ii] = LinearMapHex(cord_in_ref, cord_in_x,cord_in_y,cord_in_z);
-				double var[3];
-				var[0] = point[ii]->x;
-				var[1] = point[ii]->y;
-				var[2] = point[ii]->z;
-				conn_p[ii] = AddPoint( mesh, var, hash_nodes, point[ii] , coords);
+				conn_p[ii] = AddPoint( mesh, hash_nodes, point[ii] , coords);
 				//fprintf(mesh->fdbg,"coord out: %f, %f, %f, in the node: %d\n",var[0],var[1],var[2],conn_p[ii]);
 
 			}
@@ -5455,7 +5448,7 @@ void ApplyTemplate9(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<
 			elem1->nodes[6].id = conn_p[6];
 			elem1->nodes[7].id = conn_p[7];
 
-			CopyPropEl(mesh,id,elem1);
+			CopyPropEl(mesh,id,elem1,node_id_ref);
 
 		}else{
 			octant_t* elem2 = (octant_t*) sc_array_push(&mesh->elements);
@@ -5470,18 +5463,21 @@ void ApplyTemplate9(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<
 			elem2->nodes[6].id = conn_p[6];
 			elem2->nodes[7].id = conn_p[7];
 
-			CopyPropEl(mesh,id,elem2);
+			elem2->id = mesh->elements.elem_count;
+
+			CopyPropEl(mesh,id,elem2,node_id_ref);
 
 		}
 
 	}
 }
 
-void ApplyTemplate10(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& elements_ids, int iel, sc_hash_array_t* hash_nodes, double step){
+void ApplyTemplate10(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& elements_ids, int iel, sc_hash_array_t* hash_nodes, double step, int* node_id_ref){
 
 	octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, elements_ids[iel]);
 
-	int id = elements_ids[iel];
+	//int id = elements_ids[iel];
+	int id = elem->id;
 
 	double cord_in_ref[3];
 	cord_in_ref[0] = 0;
@@ -6303,11 +6299,7 @@ void ApplyTemplate10(hexa_tree_t* mesh, std::vector<double>& coords, std::vector
 				cord_in_ref[2] = local_ref[i][ii][2];
 
 				point[ii] = LinearMapHex(cord_in_ref, cord_in_x,cord_in_y,cord_in_z);
-				double var[3];
-				var[0] = point[ii]->x;
-				var[1] = point[ii]->y;
-				var[2] = point[ii]->z;
-				conn_p[ii] = AddPoint( mesh, var, hash_nodes, point[ii] , coords);
+				conn_p[ii] = AddPoint( mesh, hash_nodes, point[ii] , coords);
 				//fprintf(mesh->fdbg,"coord out: %f, %f, %f, in the node: %d\n",var[0],var[1],var[2],conn_p[ii]);
 
 			}
@@ -6327,7 +6319,7 @@ void ApplyTemplate10(hexa_tree_t* mesh, std::vector<double>& coords, std::vector
 			elem1->nodes[6].id = conn_p[6];
 			elem1->nodes[7].id = conn_p[7];
 
-			CopyPropEl(mesh,id,elem1);
+			CopyPropEl(mesh,id,elem1,node_id_ref);
 
 		}else{
 			octant_t* elem2 = (octant_t*) sc_array_push(&mesh->elements);
@@ -6342,41 +6334,49 @@ void ApplyTemplate10(hexa_tree_t* mesh, std::vector<double>& coords, std::vector
 			elem2->nodes[6].id = conn_p[6];
 			elem2->nodes[7].id = conn_p[7];
 
-			CopyPropEl(mesh,id,elem2);
+			elem2->id = mesh->elements.elem_count;
+
+			CopyPropEl(mesh,id,elem2,node_id_ref);
 
 		}
 	}
 }
 
-void ApplyTemplate11(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& elements_ids, int iel, sc_hash_array_t* hash_nodes, double step){
+void ApplyTemplate11(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& elements_ids, int iel, sc_hash_array_t* hash_nodes, double step, int* node_id_ref){
 
 	octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, elements_ids[iel]);
 
-	int id = elements_ids[iel];
+	if(elem->id==16){
+	fprintf(mesh->fdbg,"tosco: %d\n",elem->id);
+	}
+	//int id = elements_ids[iel];
+	int id = elem->id;
+
 	int conn_p[64];
 	GtsPoint* point[64]={NULL};
 
 	double cord_in_x[8],cord_in_y[8],cord_in_z[8];
 	double cord_in_ref[3];
-	cord_in_ref[0] = -1;
-	cord_in_ref[1] = -1;
-	cord_in_ref[2] = -1;
 
 	//add the nodes in the coord vector
 	for (int i = 0; i < 8; i++){
 		cord_in_x[i]=coords[3*elem->nodes[i].id] ;
 		cord_in_y[i]=coords[3*elem->nodes[i].id+1] ;
 		cord_in_z[i]=coords[3*elem->nodes[i].id+2] ;
-		//fprintf(mesh->fdbg,"coord in: %f, %f, %f, in the node: %d\n",cord_in_x[i],cord_in_y[i],cord_in_z[i],i);
+		if(elem->id==16){
+		fprintf(mesh->fdbg,"coord in: %f, %f, %f, in the node: %d\n",cord_in_x[i],cord_in_y[i],cord_in_z[i],i);
+		}
 	}
 
+	cord_in_ref[0] = -1;
 	for (int i = 0; i < 4; ++i) {
 		cord_in_ref[1] = -1;
 		for (int ii = 0; ii < 4; ++ii) {
 			cord_in_ref[2] = -1;
 			for (int iii = 0; iii < 4; ++iii) {
-
-				//fprintf(mesh->fdbg,"coord ref: %f, %f, %f\n",cord_in_ref[0],cord_in_ref[1],cord_in_ref[2]);
+//				if(elem->id==16){
+//				fprintf(mesh->fdbg,"coord ref: %f, %f, %f\n",cord_in_ref[0],cord_in_ref[1],cord_in_ref[2]);
+//				}
 
 				if((i==0 || i==3) && (ii==0 || ii==3) && (iii==0 || iii==3) ){
 					if(i==0 && ii==0 && iii==0){
@@ -6397,19 +6397,22 @@ void ApplyTemplate11(hexa_tree_t* mesh, std::vector<double>& coords, std::vector
 						conn_p[i*16+ii*4+iii] = elem->nodes[6].id;
 					}
 				}else{
-					point[i*16+ii*4+iii] = LinearMapHex(cord_in_ref, cord_in_x,cord_in_y,cord_in_z);
-					double var[3];
-					var[0] = point[i*16+ii*4+iii]->x;
-					var[1] = point[i*16+ii*4+iii]->y;
-					var[2] = point[i*16+ii*4+iii]->z;
-					conn_p[i*16+ii*4+iii] = AddPoint( mesh, var, hash_nodes, point[i*16+ii*4+iii] , coords);
-				}
 
-				//fprintf(mesh->fdbg,"id do no: %d\n",conn_p[i*16+ii*4+iii]);
-				//double xxx = coords[3*conn_p[i*16+ii*4+iii]];
-				//double yyy = coords[3*conn_p[i*16+ii*4+iii]+1];
-				//double zzz = coords[3*conn_p[i*16+ii*4+iii]+2];
-				//fprintf(mesh->fdbg,"no vetor Coords x: %f, y:%f, z:%f\n", xxx, yyy, zzz );
+					point[i*16+ii*4+iii] = LinearMapHex(cord_in_ref, cord_in_x,cord_in_y,cord_in_z);
+					conn_p[i*16+ii*4+iii] = AddPoint( mesh, hash_nodes, point[i*16+ii*4+iii] , coords);
+
+					if(elem->id==16){
+						fprintf(mesh->fdbg,"id do no: %d\n",conn_p[i*16+ii*4+iii]);
+						fprintf(mesh->fdbg,"saida do jacobiano x: %f, y:%f, z:%f\n", point[i*16+ii*4+iii]->x, point[i*16+ii*4+iii]->y, point[i*16+ii*4+iii]->z );}
+
+				}
+				/*
+				if(elem->id==16){
+				double xxx = coords[3*conn_p[i*16+ii*4+iii]];
+				double yyy = coords[3*conn_p[i*16+ii*4+iii]+1];
+				double zzz = coords[3*conn_p[i*16+ii*4+iii]+2];
+				fprintf(mesh->fdbg,"sainda ja dessa bagaca no vetor Coords x: %f, y:%f, z:%f\n", xxx, yyy, zzz );}
+				*/
 				cord_in_ref[2] = cord_in_ref[2] + step;
 			}
 			cord_in_ref[1] = cord_in_ref[1] + step;
@@ -6436,7 +6439,7 @@ void ApplyTemplate11(hexa_tree_t* mesh, std::vector<double>& coords, std::vector
 					elem1->nodes[6].id = conn_p[(i+1)*16+(ii+1)*4+iii+1];
 					elem1->nodes[7].id = conn_p[i*16+(ii+1)*4+iii+1];
 
-					CopyPropEl(mesh,id,elem1);
+					CopyPropEl(mesh,id,elem1,node_id_ref);
 				} else{
 
 					octant_t* elem2 = (octant_t*) sc_array_push(&mesh->elements);
@@ -6451,7 +6454,9 @@ void ApplyTemplate11(hexa_tree_t* mesh, std::vector<double>& coords, std::vector
 					elem2->nodes[6].id = conn_p[(i+1)*16+(ii+1)*4+iii+1];
 					elem2->nodes[7].id = conn_p[i*16+(ii+1)*4+iii+1];
 
-					CopyPropEl(mesh,id,elem2);
+					elem2->id = mesh->elements.elem_count;
+
+					CopyPropEl(mesh,id,elem2,node_id_ref);
 				}
 			}
 		}
@@ -6494,68 +6499,83 @@ void ApplyOctreeTemplate(hexa_tree_t* mesh, std::vector<double>& coords, std::ve
 		double step = double(2)/double(3);
 
 		octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, elements_ids[iel]);
-		int id = elements_ids[iel];
+		//int id = elements_ids[iel];
 
+		int node_id_ref[8];
+		for(int i = 0; i<8;i++){
+			node_id_ref[i]=elem->nodes[i].id;
+		}
+
+		if(elem->initem!=-10){
+			for(int i = 0; i<8;i++){
+				elem->nodes[i].fixed = 0;
+			}
+		}
 		//fprintf(mesh->fdbg,"Element: %d\n", elements_ids[iel]);
 
 		//printf("Element: %d, pad: %d, temp: %d, level: %d\n",elements_ids[iel],elem->pad,elem->tem,elem->level);
 
+		//template 11
+		if(elem->tem==11){
+			ApplyTemplate11(mesh, coords, elements_ids,iel, hash_nodes, step, node_id_ref);
+		}
+
 		//template 1
-		if(elem->tem==1){
-			ApplyTemplate1(mesh, coords, elements_ids,iel, hash_nodes, step);
+		else if(elem->tem==1){
+			ApplyTemplate1(mesh, coords, elements_ids,iel, hash_nodes, step, node_id_ref);
 		}
 
 		//template 2
 		else if(elem->tem==2){
-			ApplyTemplate2(mesh, coords, elements_ids,iel, hash_nodes, step);
+			ApplyTemplate2(mesh, coords, elements_ids,iel, hash_nodes, step, node_id_ref);
 		}
 
 		//template 3
 		else if(elem->tem==3){
-			ApplyTemplate3(mesh, coords, elements_ids,iel, hash_nodes, step);
+			ApplyTemplate3(mesh, coords, elements_ids,iel, hash_nodes, step, node_id_ref);
 		}
 
 		//template 4
 		else if(elem->tem==4){
-			ApplyTemplate4(mesh, coords, elements_ids,iel, hash_nodes, step);
+			ApplyTemplate4(mesh, coords, elements_ids,iel, hash_nodes, step, node_id_ref);
 		}
 
 		//template 5
 		else if(elem->tem==5){
-			ApplyTemplate5(mesh, coords, elements_ids,iel, hash_nodes, step);
+			ApplyTemplate5(mesh, coords, elements_ids,iel, hash_nodes, step, node_id_ref);
 		}
 
 		//template 6
 		else if(elem->tem==6){
-			ApplyTemplate6(mesh, coords, elements_ids,iel, hash_nodes, step);
+			ApplyTemplate6(mesh, coords, elements_ids,iel, hash_nodes, step, node_id_ref);
 		}
 
 		//template 7
 		else if(elem->tem==7){
-			ApplyTemplate7(mesh, coords, elements_ids,iel, hash_nodes, step);
+			ApplyTemplate7(mesh, coords, elements_ids,iel, hash_nodes, step, node_id_ref);
 		}
 
 		//template 8
 		else if(elem->tem==8){
-			ApplyTemplate8(mesh, coords, elements_ids,iel, hash_nodes, step);
+			ApplyTemplate8(mesh, coords, elements_ids,iel, hash_nodes, step, node_id_ref);
 		}
 
 		//template 9
 		else if(elem->tem==9){
-			ApplyTemplate9(mesh, coords, elements_ids,iel, hash_nodes, step);
+			ApplyTemplate9(mesh, coords, elements_ids,iel, hash_nodes, step, node_id_ref);
 		}
 
 		//template 10
 		else if(elem->tem==10){
-			ApplyTemplate10(mesh, coords, elements_ids,iel, hash_nodes, step);
-		}
-
-		//template 11
-		else if(elem->tem==11){
-			ApplyTemplate11(mesh, coords, elements_ids,iel, hash_nodes, step);
+			ApplyTemplate10(mesh, coords, elements_ids,iel, hash_nodes, step, node_id_ref);
 		}
 
 	}
+
+	//TODO
+	//update the nodes, faces, and edges
+	//boost?
+
 
 	//update the vectors
 	mesh->local_n_elements = mesh->elements.elem_count;
@@ -6571,8 +6591,9 @@ void ApplyOctreeTemplate(hexa_tree_t* mesh, std::vector<double>& coords, std::ve
 	//redefine the connectivity data for write the vtk file
 	mesh->part_nodes = NULL;
 	mesh->part_nodes = (int*) malloc (mesh->local_n_nodes*sizeof(int));
-	for(int i =0; i < mesh->local_n_nodes; i++)
+	for(int i =0; i < mesh->local_n_nodes; i++){
 		mesh->part_nodes[i] = mesh->mpi_rank;
+	}
 
 	sc_hash_array_t* shared_nodes    = (sc_hash_array_t *)sc_hash_array_new(sizeof (shared_node_t), node_shared_hash_fn, node_shared_equal_fn, &clamped);
 	//insert the shared nodes in the hash_array
@@ -6618,7 +6639,7 @@ void ApplyOctreeTemplate(hexa_tree_t* mesh, std::vector<double>& coords, std::ve
 		octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, iel);
 		elem->id = iel;
 		if(elem->ghost){
-			fprintf(mesh->fdbg,"El:%d\n",elem->id);
+			//fprintf(mesh->fdbg,"El:%d\n",elem->id);
 			for(int i = 0; i < 8; i++){
 				if(ys>=coords[3*elem->nodes[i].id+1]){
 					if(xs>=coords[3*elem->nodes[i].id]){
@@ -6653,7 +6674,7 @@ void ApplyOctreeTemplate(hexa_tree_t* mesh, std::vector<double>& coords, std::ve
 
 
 #ifdef HEXA_DEBUG_
-	if(1){
+	if(0){
 		fprintf(mesh->fdbg, "Shared Nodes: \n");
 		fprintf(mesh->fdbg, "Total: %d\n",shared_nodes->a.elem_count);
 		for(int i = 0; i < shared_nodes->a.elem_count; ++i)

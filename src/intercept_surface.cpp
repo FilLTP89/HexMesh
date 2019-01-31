@@ -129,7 +129,8 @@ void GetInterceptedElements(hexa_tree_t* mesh, std::vector<double>& coords, std:
 		octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, iel);
 		elem->pad = 0;
 		elem->tem = 0;
-		//elem->n_mat = 1;
+		elem->inipad = -10;
+		elem->initem = -10;
 
 		box->x1 = box->y1 = box->z1 = 1.0E10;
 		box->x2 = box->y2 = box->z2 = -1.0E10;
@@ -151,7 +152,45 @@ void GetInterceptedElements(hexa_tree_t* mesh, std::vector<double>& coords, std:
 		if (gts_bb_tree_is_overlapping(mesh->gdata.bbt, box)) {
 			elements_ids.push_back(iel);
 			elem->pad = -1;
+			elem->inipad = -1;
 		}
+
+		///////////
+		GtsSegment * segments[12]={0};
+		GtsPoint * point[12]={NULL};
+		int ed_cont = 0;
+
+		for (int edge = 0; edge < 12; ++edge) {
+			point[edge] = NULL;
+			int node1 = elem->nodes[EdgeVerticesMap[edge][0]].id;
+			int node2 = elem->nodes[EdgeVerticesMap[edge][1]].id;
+			GtsVertex *v1 = gts_vertex_new(gts_vertex_class(), coords[node1 * 3], coords[node1 * 3 + 1], coords[node1 * 3 + 2]);
+			GtsVertex *v2 = gts_vertex_new(gts_vertex_class(), coords[node2 * 3], coords[node2 * 3 + 1], coords[node2 * 3 + 2]);
+			segments[edge] = gts_segment_new(gts_segment_class(), v1, v2);
+			GtsBBox *sb = gts_bbox_segment(gts_bbox_class(), segments[edge]);
+			GSList* list = gts_bb_tree_overlap(mesh->gdata.bbt, sb);
+			if (list == NULL) continue;
+			while (list) {
+				GtsBBox *b = GTS_BBOX(list->data);
+				point[edge] = SegmentTriangleIntersection(segments[edge], GTS_TRIANGLE(b->bounded));
+				if (point[edge]) {
+					elem->edge[edge].ref = true;
+					elem->pad = -1;
+					ed_cont++;
+					break;
+				}
+				list = list->next;
+			}
+		}
+
+		//Bounding box intercepted
+		if(elem->pad == -1 && ed_cont == 0){
+			elem->pad = 0;
+			for (int edge = 0; edge < 12; ++edge) {
+				elem->edge[edge].ref = false;
+			}
+		}
+
 	}
 }
 

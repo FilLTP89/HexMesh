@@ -379,10 +379,12 @@ void hexa_mesh(hexa_tree_t* mesh){
 	for(int i = 0; i < mesh->elements.elem_count; i++)
 	{
 		octant_t *h  = (octant_t*) sc_array_index(&mesh->elements, i);
+		h->father = -1;
 		for(int j = 0; j < 8; j++) {
 			octant_node_t* node = &h->nodes[j];
 			//initialization for the node color
 			node->color = -1;
+			node->fixed=0;
 			r = (octant_node_t*) sc_hash_array_insert_unique (indep_nodes, node, &position);
 			if(r != NULL)
 			{
@@ -561,7 +563,7 @@ void hexa_mesh(hexa_tree_t* mesh){
 
 
 #ifdef HEXA_DEBUG_
-	if(1){
+	if(0){
 		fprintf(mesh->fdbg, "Nodes: \n");
 		for(int i = 0; i < mesh->nodes.elem_count; ++i)
 		{
@@ -808,7 +810,6 @@ void hexa_mesh(hexa_tree_t* mesh){
 	//add edge_identification
 	//int nedges = 0;
 	//initialization for the edge id
-	//TODO MEMORY and TIME consumption are insane...
 	for (int iel = 0; iel < mesh->elements.elem_count; ++iel) {
 
 		octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, iel);
