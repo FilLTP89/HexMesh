@@ -17,6 +17,7 @@ if ~isempty(c)
     for i1 = 1:length(c.Land)
         c.Land{i1} = smoothSingleCurve(c.Land{i1},h);
     end
+     
     c.Land = c.Land(~cellfun('isempty',c.Land));
 end
 

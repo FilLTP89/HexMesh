@@ -12,23 +12,24 @@ clear all
 % l = [38 00 38 30   20 10   20 50]; % Kefalonia, Greece Svay Paper
 
 % l = [37 10 37 40  138 15  138 55]; % Kashiwazaki, Japan
-l = [37 10 38 00  138 15  139 00]; % Kashiwazaki, Japan
+% l = [37 10 38 00  138 15  139 00]; % Kashiwazaki, Japan
 % l = [18 30 21 00 -157 00 -154 00]; % Mauna Loa, Hawai
 % l = [38 40 38 60   20 40   20 60]; % test small Kefalonia, Greece
 % l = [20 00 21 00 -156 00 -155 00]; % test small Mauna Loa, Hawai
+l = [44,0/100*60,44,90/100*60,4,10/100*60,5,20/100*60];
 
+origin = [632793, 4930744];
 % choose output directory
 outdir = '.';
 
 % characteristic length over which details of the coastline are removed
 % put H<=0 if you want no smoothing (this is very expensive because many
 % small elements will be created)
-H = .01; % in units of lon/lat
+H = - .01; % in units of lon/lat
 
 % minimum water depth
 minwater = -10;
 
-warning('Please verify that you have wget installed!')
 % using macports
 % sudo port install wget
 % if you are using linux, maybe you need to change the path to wget
@@ -56,11 +57,12 @@ lonbnds = l(5):(l(7)+1);
 loncrop = [l(5)+l(6)/60 l(7)+l(8)/60];
 
 % get topography and plot
-topographySRTM(latbnds, lonbnds, outdir, 'interp', 'merge', ...
-                    'crop', [latcrop loncrop]);
-topo = topographySRTM(latbnds, lonbnds, outdir, 'interp', 'merge', ...
-                     'crop', [latcrop loncrop]);
-                 
+%topographySRTM(latbnds, lonbnds, outdir, 'interp', 'merge', ...
+%                    'crop', [latcrop loncrop]);
+%topo = topographySRTM(latbnds, lonbnds, outdir, 'interp', 'merge', ...
+%                     'crop', [latcrop loncrop]);	
+topo=readhgt(latbnds,lonbnds,outdir,'interp','merge','srtm3','wget', ...
+	       'crop',[latcrop loncrop],'login','filltp89','MSSMatUMRCNRS8579#');	
 nmax = 1e4;
 if length(topo.lon)>nmax || length(topo.lat)>nmax
     error('the STL file will be too large')
@@ -74,14 +76,16 @@ bathy = bathymetrySRTM(latbnds, lonbnds, outdir, 'interp', 'merge', ...
 
 % get coastlines (for now only treating Ocean and Land)
 [x,y] = ndgrid(latbnds(1:end-1), lonbnds(1:end-1));
-x = x(:); y = y(:);
-water = struct('Ocean',{[]},'River',{[]},'Lake',{[]}, 'Land',{[]},'Isle',{[]});
+x = x(:);
+y = y(:);
+water = struct('Ocean',{[]},'River',{[]},'Lake',{[]}, 'Land',{[{}]},'Isle',{[]});
 for i1 = 1:length(x)
     wat = swbd_shore( [ y(i1) y(i1)+1 x(i1) x(i1)+1 ], outdir );
     if isempty(wat)
         ocean = [ y(i1) y(i1) y(i1)+1 y(i1)+1 y(i1); 
                   x(i1) x(i1)+1 x(i1)+1 x(i1) x(i1) ];
         water.Ocean = [water.Ocean; {ocean}];
+        water.Land = [water.Land; {ocean}];
     else
         water.Ocean = [water.Ocean; wat.Ocean];
 %        water.River = [water.River; wat.River];
@@ -92,12 +96,12 @@ for i1 = 1:length(x)
 end
 
 % smooth coastlines
-h = figure; 
-plotCoastline( water.Ocean, 'k-', h );
-plotCoastline( water.Land, 'b-', h );
+%h = figure; 
+%plotCoastline( water.Ocean, 'k-', h );
+%plotCoastline( water.Land, 'b-', h );
 water = smoothCurve(water,H);
-plotCoastline( water.Ocean, 'r--o', h );
-plotCoastline( water.Land, 'r--o', h );
+%plotCoastline( water.Ocean, 'r--o', h );
+%plotCoastline( water.Land, 'r--o', h );
 
 % integrate bathymetry and coastlines
 bathy = altimetryCoastline( bathy, water, 3 );
@@ -111,11 +115,11 @@ z(ind) = minwater;
 % remove elements on land (depending on value at center of element)
 ind = distc>0;
 X = [ bathy.Points(:,1:2) z ];
-T = cleanFlatT( bathy.ConnectivityList(~ind,:), X, 1e-10 );
-bathy = triangulation( T, X(:,1), X(:,2), X(:,3) );
+Tb = cleanFlatT( bathy.ConnectivityList(~ind,:), X, 1e-10 );
+bathy = triangulation( Tb, X(:,1), X(:,2), X(:,3) );
 
 % add vertical elements to make sure the STL crosses the z=0 surface
-altz = 1000;
+altz = 10;
 ind = abs(bathy.Points(:,3))<1e-8;
 bnd = freeBoundary(bathy);
 bnd = bnd(all(ind(bnd),2),:);
@@ -138,29 +142,41 @@ z = topo.Points(:,3);
 
 % replace all values in water by zero
 ind = dist<=0;
-z(ind) = 0;
+% z(ind) = 0;
 
 % at distance H around the coastline, put all negative z on land to zero
 ind = dist>0 & dist<H & z<0;
-z(ind) = 0;
+% z(ind) = 0;
 X = [ topo.Points(:,1:2) z ];
 T = cleanFlatT( topo.ConnectivityList, X, 1e-10 );
 topo = triangulation( T, X(:,1), X(:,2), X(:,3) );
-%figure; trisurf( topo ); shading flat;
+figure; trisurf( topo ); shading flat;
 
-% return
 
 % write topography STL file
 if ~isempty(topo)
-    [xtopo,ytopo] = lonlat2m(topo.Points(:,1),topo.Points(:,2));
-    write_stl( fullfile(outdir,'topo.stl'), ...
-        [xtopo ytopo topo.Points(:,3)], topo.ConnectivityList');
+    % theoretically: 
+    % [xUTM,yUTM] = ll2utm(topo.Points(:,1),topo.Points(:,2));
+    % But shows problems.
+    % Inverting the coordinates to have the right orientation of topo.stl
+    % From the (lag, long) coordinates given on Geoportail and their
+    % equivalent (x, y) coordinates (UTM N31, metropolitain France), seems
+    % to fit too (https://www.geoportail.gouv.fr/carte)
+
+    % [xtopo,ytopo] = lonlat2m(topo.Points(:,1),topo.Points(:,2));
+    [xtopo,ytopo] = ll2utm(topo.Points(:,2),topo.Points(:,1));
+    TR = triangulation(topo.ConnectivityList,[xtopo ytopo topo.Points(:,3)]);
+    stlwrite(TR,fullfile(outdir,'topo.stl'));
+    % write_stl( fullfile(outdir,'topo.stl'), ...
+    %     [xtopo ytopo topo.Points(:,3)], topo.ConnectivityList');
 end
 
-% write bathymetry STL file
-if ~isempty(bathy)
-    [xbathy,ybathy] = lonlat2m(bathy.Points(:,1),bathy.Points(:,2));
-    write_stl( fullfile(outdir,'bathy.stl'), ...
-                 [xbathy ybathy bathy.Points(:,3)], bathy.ConnectivityList');
-end            
+%% write bathymetry STL file
+%if ~isempty(bathy)
+%    [xbathy,ybathy] = ll2utm(bathy.Points(:,2),bathy.Points(:,1));
+%    TR = triangulation(topo.ConnectivityList,[xbathy ybathy topo.Points(:,3)]);
+%    stlwrite(TR,fullfile(outdir,'bathy.stl'));
+%    % write_stl( fullfile(outdir,'bathy.stl'), ...
+%                 % [xbathy ybathy bathy.Points(:,3)], bathy.ConnectivityList');
+%end            
              

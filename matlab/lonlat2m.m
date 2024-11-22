@@ -1,4 +1,4 @@
-function [x,y] = lonlat2m(x,y,ymoyen)
+function [x,y] = lonlat2m(lon,lat,ymoyen)
 % LONLAT2M transforms longitude/latitude (in degrees) coordinates 
 % to meters
 %
@@ -12,9 +12,9 @@ nm = pi*R/180*1000;
 if nargin>2
     ym = ymoyen;
 else
-    ym = y;
+    ym = lat;
 end
 
 % change of coordinates
-x = x.*cos(ym/(180*pi))*nm;
-y = y*nm;
+x = lon.*cos(ym/(180*pi)).*nm;
+y = lat.*nm;

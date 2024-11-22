@@ -40,7 +40,7 @@ function [d,fname] = read_swbd(file,outdir)
 %
 
 d = [];
-url = 'http://dds.cr.usgs.gov/';
+url = 'https://dds.cr.usgs.gov/';
 fsrtm = 'readhgt_swbd_index.txt';
 %-------------------------------------------------------
 % Check Input
