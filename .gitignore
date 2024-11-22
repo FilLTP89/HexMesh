@@ -1,3 +1,5 @@
+CMakeFiles/*
+CMakeCache.txt
 *.exe
 *.vtu
 *.pvtu
