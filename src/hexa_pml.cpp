@@ -162,12 +162,12 @@ inline void SetPMLMask_face(int8_t* mask, int8_t pml_id) {
 
 void ExtrudePMLElements(hexa_tree_t* mesh, std::vector<double>& coords) {
 
-	double X_pml = 30000;
-	double Y_pml = 30000;
-	double Z_pml = 30000;
-	int layers_x = 5;
-	int layers_y = 5;
-	int layers_z = 5;
+	double X_pml = 500;
+	double Y_pml = 500;
+	double Z_pml = 500;
+	int layers_x = 3;
+	int layers_y = 3;
+	int layers_z = 3;
 	int mat_count = 25;
 	int n_layers = 2;
 	int8_t mask[NPML];
