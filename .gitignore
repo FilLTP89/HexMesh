@@ -1,3 +1,4 @@
+*.exe
 *.vtu
 *.pvtu
 *.unv
@@ -13,4 +14,7 @@
 *.srtm
 *.o
 surface.dat
-/nbproject/
+input/
+nbproject/
+Debug/
+hexmesh.dSYM
