@@ -20,10 +20,12 @@ GLIB_INCLUDE=-I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/includ
 # Mesquite (download from git@github.com:FilLTP89/mesquite.git)
 MSQ_LIB=/path/to/mesquite/src
 MSQ_INCLUDE:=$(addprefix -I,$(shell find /home/kltpk89/Data/Filippo/mesquite/src -type d -print))
+H5_LIBDIR=/path/to/hdf5/lib
+H5_INCLUDEDIR=/path/to/hdf5/include
+#H5_FLAG = -L${H5_LIBDIR} ${H5_LIBDIR}/libhdf5_hl.a ${H5_LIBDIR}/libhdf5.a ${H5_LIBDIR}/libhdf5_cpp.a  -lz -lsz -ldl -lm -Wl,-rpath -Wl,${H5_LIBDIR}
+H5_FLAG = -L${H5_LIBDIR} ${H5_LIBDIR}/libhdf5_hl_cpp.a ${H5_LIBDIR}/libhdf5_cpp.a ${H5_LIBDIR}/libhdf5_hl.a ${H5_LIBDIR}/libhdf5.a -lz -lsz -ldl -lm -Wl,-rpath -Wl,${H5_LIBDIR}
 
-H5_FLAG = -L/usr/lib/x86_64-linux-gnu/hdf5/openmpi/lib /usr/lib/x86_64-linux-gnu/hdf5/openmpi/lib/libhdf5_hl_cpp.a /usr/lib/x86_64-linux-gnu/hdf5/openmpi/lib/libhdf5_cpp.a /usr/lib/x86_64-linux-gnu/hdf5/openmpi/lib/libhdf5_hl.a /usr/lib/x86_64-linux-gnu/hdf5/openmpi/lib/libhdf5.a -lz -lsz -ldl -lm -Wl,-rpath -Wl,/usr/lib/x86_64-linux-gnu/hdf5/openmpi/lib/
-
-H5_INCLUDE=-I/usr/lib/x86_64-linux-gnu/hdf5/openmpi/include
+H5_INCLUDE=-I${H5_INCLUDEDIR}
 
 MPI_LP :=/usr
 
@@ -57,6 +59,4 @@ clean:
 # Enable dependency checking
 .KEEP_STATE:
 .KEEP_STATE_FILE:.make.state.GNU-amd64-Linux
-
-
 
