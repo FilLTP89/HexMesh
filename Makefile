@@ -1,15 +1,16 @@
 ## -*- Makefile -*-
 ##
 ###############################################################################
+# set LD_LIBRARY_PATH $LD_LIBRARY_PATH:/home/kltpk89/Data/Filippo/mesquite/src:/home/kltpk89/Data/Filippo/libsc/local/lib
 # File management.  This is where the source, header, and object files are
 # defined
-
 #
 # source files
-srcfiles 	:= $(wildcard src/*.cpp) HexMesh_nocut.cpp
-
+srcfilesnocut 	:= $(wildcard src/*.cpp) HexMesh_nocut.cpp
+srcfiles 	:= $(wildcard src/*.cpp) HexMesh.cpp
 #
 # object files
+objects_nocut		:= $(patsubst %.cpp, %.o, $(srcfilesnocut))
 objects		:= $(patsubst %.cpp, %.o, $(srcfiles))
 #################################################################################
 
@@ -34,26 +35,42 @@ LDFLAGS   = -L$(GTS_DIR)/lib -lgts -L$(SC_DIR)/lib -lsc -lm -lglib-2.0 $(H5_FLAG
 CXX_FLAGS = -I$(GTS_DIR)/include -I$(SC_DIR)/include $(GLIB_INCLUDE) $(MSQ_INCLUDE) -Iinclude $(H5_INCLUDE) 
 
 ## Target: all
-all: hexmesh_nocut.exe
+# all: hexmesh_nocut.exe
 
 
-hexmesh_nocut.exe: $(objects)
-	$(CXX) $(objects) -o hexmesh_nocut.exe $(LDFLAGS)
+# hexmesh_nocut.exe: $(objects_nocut)
+# 	$(CXX) $(objects_nocut) -o hexmesh_nocut.exe $(LDFLAGS)
+
+# %.o : %.cpp
+# 	@echo "Compiling C++ "$<"..."
+# 	$(CXX) $(CXX_FLAGS) -c $< -o $@
 
 
+nocut: hexmesh_nocut.exe
 
-#
-# How to compile C++
-#
+
+hexmesh_nocut.exe: $(objects_nocut)
+	$(CXX) $(objects_nocut) -o hexmesh_nocut.exe -g $(LDFLAGS)
+
 %.o : %.cpp
 	@echo "Compiling C++ "$<"..."
 	$(CXX) $(CXX_FLAGS) -c $< -o $@
 
 
+cut: hexmesh.exe
+
+
+hexmesh.exe: $(objects)
+	$(CXX) $(objects) -o hexmesh.exe $(LDFLAGS)
+
+%.o : %.cpp
+	@echo "Compiling C++ "$<"..."
+	$(CXX) $(CXX_FLAGS) -c $< -o $@
+
 
 #### Clean target deletes all generated files ####
 clean: 
-	rm $(objects)
+	rm $(objects) $(objects_nocut)
 
 
 # Enable dependency checking
