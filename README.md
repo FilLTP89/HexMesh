@@ -21,10 +21,12 @@ If you use the library, please cite the following paper:
 Before using the software, the following libraries need to be installed and available:
 1. gts (http://gts.sourceforge.net/)
 1. libsc (https://github.com/cburstedde/libsc)
+1. hdf5 (https://portal.hdfgroup.org/display/support/Downloads)
+1. mesquite (https://software.sandia.gov/mesquite/)
 
 ## COMPILATION
 
-Depending on the OS you are using, modify the paths for GTS_LIB, SC_LIB and GLIB_INCLUDE in Make.Linux or Make.mac
+Depending on the OS you are using, modify the paths for GTS_LIB, SC_LIB, HDF5_DIR, MESQUITE_DIR and GLIB_INCLUDE in Make.Linux, Make.mac or Makefile
 
 Compile with (replace OS by Linux or mac)
 >> make -f Make.OS
@@ -41,4 +43,4 @@ To create the mesh, you should run (in a Terminal from the directory $(HEXMESH))
 
 >> mpirun -np <nb_proc> ./hexmesh <refine_level>
 
-where <nb_proc> is an integer specifying the number of processes used to create the mesh (each process creates its own VTK file), and <refine_level> is an integer specifying the number of level refinements of the 27-tree structure! (For now, the integer must be a power of 3: 1, 3, 9, 27 …). The files topo.gts, bathy.gts and coastline.dat should be in a repository ./input. By default, the depth of the mesh is the larger dimension of the two horizontal dimensions of the topography file.
+where <nb_proc> is an integer specifying the number of processes used to create the mesh (each process creates its own VTK file), and <refine_level> is an integer specifying the number of level refinements of the 27-tree structure! (For now, the integer must be a power of 3: 1, 3, 9, 27 …). The files topo.gts, bathy.gts and coastline.dat should be in a repository ./input. By default (this will be made more general later), the depth of the mesh is the larger dimension of the two horizontal dimensions of the topography file; and the depths at which the refinements occur at set in function hexa_tree_cube, in hexa.cpp line 190).

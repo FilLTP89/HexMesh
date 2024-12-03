@@ -20,3 +20,4 @@ input/
 nbproject/
 Debug/
 hexmesh.dSYM
+*.zip

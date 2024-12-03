@@ -6,7 +6,7 @@
 
 #
 # source files
-srcfiles 	:= $(wildcard src/*.cpp) HexMesh.cpp
+srcfiles 	:= $(wildcard src/*.cpp) HexMesh_nocut.cpp
 
 #
 # object files
@@ -14,14 +14,14 @@ objects		:= $(patsubst %.cpp, %.o, $(srcfiles))
 #################################################################################
 
 GTS_DIR:=/usr/local
-SC_DIR:=/path/to/libsc/local # download from https://github.com/cburstedde/libsc.git  
+SC_DIR:=/path/to/libsc/local
 GLIB_INCLUDE=-I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include
 
 # Mesquite (download from git@github.com:FilLTP89/mesquite.git)
-MSQ_LIB=/path/to/mesquite/src
-MSQ_INCLUDE:=$(addprefix -I,$(shell find /home/kltpk89/Data/Filippo/mesquite/src -type d -print))
-H5_LIBDIR=/path/to/hdf5/lib
-H5_INCLUDEDIR=/path/to/hdf5/include
+MSQ_LIB=/path/to/mesquite_github/src
+MSQ_INCLUDE:=$(addprefix -I,$(shell find /path/to/mesquite_github/src -type d -print))
+H5_LIBDIR=/path/to/hdf5-seq/lib
+H5_INCLUDEDIR=/path/to/hdf5-seq/include
 #H5_FLAG = -L${H5_LIBDIR} ${H5_LIBDIR}/libhdf5_hl.a ${H5_LIBDIR}/libhdf5.a ${H5_LIBDIR}/libhdf5_cpp.a  -lz -lsz -ldl -lm -Wl,-rpath -Wl,${H5_LIBDIR}
 H5_FLAG = -L${H5_LIBDIR} ${H5_LIBDIR}/libhdf5_hl_cpp.a ${H5_LIBDIR}/libhdf5_cpp.a ${H5_LIBDIR}/libhdf5_hl.a ${H5_LIBDIR}/libhdf5.a -lz -lsz -ldl -lm -Wl,-rpath -Wl,${H5_LIBDIR}
 
@@ -34,11 +34,11 @@ LDFLAGS   = -L$(GTS_DIR)/lib -lgts -L$(SC_DIR)/lib -lsc -lm -lglib-2.0 $(H5_FLAG
 CXX_FLAGS = -I$(GTS_DIR)/include -I$(SC_DIR)/include $(GLIB_INCLUDE) $(MSQ_INCLUDE) -Iinclude $(H5_INCLUDE) 
 
 ## Target: all
-all: hexmeshc
+all: hexmesh_nocut.exe
 
 
-hexmeshc: $(objects)
-	$(CXX) $(objects) -o hexmeshc $(LDFLAGS)
+hexmesh_nocut.exe: $(objects)
+	$(CXX) $(objects) -o hexmesh_nocut.exe $(LDFLAGS)
 
 
 

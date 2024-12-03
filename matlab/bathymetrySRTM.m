@@ -128,10 +128,17 @@ inter = 0;
 cropflag = 0;
 crop = [];
 
+<<<<<<< HEAD
 if nargin > 0
     makeplot = any(strcmp(varargin,'plot'));
     merge = any(strcmp(varargin,'merge'));
     kcrop = find(strcmp(varargin,'crop'));
+=======
+if nargin > 0 
+	makeplot = 1;%any(strcmp(varargin,'plot'));
+	merge = any(strcmp(varargin,'merge'));
+	kcrop = find(strcmp(varargin,'crop'));
+>>>>>>> smart_octree
     if ~isempty(kcrop)
         cropflag = 1;
         if (kcrop + 1) <= nargin && isnumeric(varargin{kcrop+1})
