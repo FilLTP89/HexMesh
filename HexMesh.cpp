@@ -1,4 +1,4 @@
-/* 
+/*
  * File:   HexMesh.cpp
  * Author: Lucio de Abreu Correa
  *
@@ -17,114 +17,130 @@
 #include <sc_containers.h>
 #include "hexa.h"
 #include "hilbert.h"
-#include "refinement.h"
+#include <ctime>
+#include <chrono>
 
+// void GetMeshFromSurface(hexa_tree_t *tree, const char *surface_topo, std::vector<double> &coords);
+// void GetInterceptedElements(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> &elements_ids, const char *surface_bathy);
+// void CheckOctreeTemplate(hexa_tree_t *mesh, const std::vector<double> &coords, std::vector<int> &elements_ids, bool flag);
+// void ApplyOctreeTemplate(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> &elements_ids);
+// int CheckTemplate(hexa_tree_t *mesh, const std::vector<double> &coords, std::vector<int> &elements_ids, bool flag);
+// void CutTemplate(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> &elements_ids);
 
-void GetMeshFromSurface(hexa_tree_t* tree, const char* surface_topo, std::vector<double>& coords);
-void GetInterceptedElements(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& elements_ids, const char* surface_bathy);
-void CheckOctreeTemplate(hexa_tree_t* mesh, const std::vector<double>& coords, std::vector<int>& elements_ids, bool flag);
-void ApplyOctreeTemplate(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& elements_ids);
+// void Apply_material(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> &element_ids, const char *surface_bathy);
+// void Adjust_material(hexa_tree_t *mesh);
+// // void AddPMLElements(hexa_tree_t* mesh);
+// void ExtrudePMLElements(hexa_tree_t *mesh, std::vector<double> &coords);
 
-//void ChangeTemplate(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& elements_ids);
-//void ApplyTemplate(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& elements_ids);
-//void Move_nodes(hexa_tree_t* tree, const char* surface_bathy, std::vector<double>& coords, std::vector<int>& element_ids);
+// void IdentifyTemplate(hexa_tree_t *mesh, const std::vector<double> &coords, std::vector<int> &elements_ids);
+// void MovingNodes(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> &nodes_b_mat, const char *surface);
+// void MeshOpt(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> material_fixed_nodes);
+// void UntagleMesh(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> material_fixed_nodes);
 
-int CheckTemplate(hexa_tree_t* mesh, const std::vector<double>& coords, std::vector<int>& elements_ids, bool flag);
-void CutTemplate(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& elements_ids);
-
-void Apply_material(hexa_tree_t* mesh, std::vector<double>& coords,std::vector<int>& element_ids, const char* surface_bathy);
-void Adjust_material(hexa_tree_t* mesh);
-//void AddPMLElements(hexa_tree_t* mesh);
-void ExtrudePMLElements(hexa_tree_t* mesh, std::vector<double>& coords);
-
-void IdentifyTemplate(hexa_tree_t* mesh, const std::vector<double>& coords, std::vector<int>& elements_ids);
-void MovingNodes(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& nodes_b_mat, const char* surface);
-void MeshOpt(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int> material_fixed_nodes);
-void UntagleMesh(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int> material_fixed_nodes);
-
-
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
 
   hexa_tree_t mesh;
 
   std::vector<double> coords;
   std::vector<int> element_ids;
   std::vector<int> nodes_b_mat;
-
+  auto start = std::chrono::steady_clock::now();
   int l = atoi(argv[1]);
 
+  // mpi init
   hexa_init(argc, argv, &mesh);
-
+  // set the initial number of elements in x,y,z
   hexa_tree_init(&mesh, l);
+  // build the referene mesh
   hexa_tree_cube(&mesh);
 
-  //hexa_debug_face_hanging(&mesh);
-  //AddPMLElements(&mesh);
-  
+  // deal with the mpi com
   hexa_mesh(&mesh);
 
-  const char * bathy   = argv[2];
-  const char * topo    = argv[3];
-  const char * outmesh = argv[4];
-  
+  auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
+  fprintf(mesh.profile, "Time in the initialization %lld millisecond(s).\n", elapsed.count());
+  std::cout << "Time in the initialization " << elapsed.count() << " millisecond(s)." << std::endl;
+
+  const char *bathy = argv[2];
+  const char *topo = argv[3];
+  const char *outmesh = argv[4];
+  printf("Loading files:\n \t %s \n \t %s \n", bathy, topo);
+
+  start = std::chrono::steady_clock::now();
   // Note that here we use a gts file.
   // There is a tool called stl2gts that convert STL files to GTS.
   // It is installed together with the gts library.
+  // create the geometrical mesh
   GetMeshFromSurface(&mesh, topo, coords);
+  elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
+  fprintf(mesh.profile, "Time in the GetMeshFromSurface %lld millisecond(s).\n", elapsed.count());
+  std::cout << "Time in the GetMeshFromSurface " << elapsed.count() << " millisecond(s)." << std::endl;
 
-  //printf(" Check the method\n");
-  //el_not_handle = CheckTemplate(&mesh, coords, element_ids ,true);
+  // find the elements intercepted by the bathy
+  start = std::chrono::steady_clock::now();
+  GetInterceptedElements(&mesh, coords, element_ids, bathy);
+  printf(" Elements intercepted: %lld\n\n", element_ids.size());
+  elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
+  fprintf(mesh.profile, "Time in the GetInterceptedElements %lld millisecond(s).\n", elapsed.count());
+  std::cout << "Time in GetInterceptedElements " << elapsed.count() << " millisecondsecond(s)." << std::endl;
 
-  //if(el_not_handle == 0){
-  //printf("Cut templates\n");
-  //CutTemplate(&mesh, coords, element_ids);
-  //}else{
+  // apply a deformation in the mesh to fit the bathy
+  start = std::chrono::steady_clock::now();
+  printf(" Project nodes to the surface\n\n");
+  MovingNodes(&mesh, coords, nodes_b_mat, bathy);
+  elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
+  fprintf(mesh.profile, "Time in the MovingNodes %lld millisecond(s).\n", elapsed.count());
+  std::cout << "Time in MovingNodes " << elapsed.count() << " millisecond(s)." << std::endl;
 
-  /*
-  printf(" Check and propagate 27-tree templates\n");
-  CheckOctreeTemplate(&mesh, coords, element_ids, true);
+  // apply material
+  start = std::chrono::steady_clock::now();
+  printf(" Applying material \n\n");
+  element_ids.clear();
+  Apply_material(&mesh, coords, bathy);
+  elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
+  fprintf(mesh.profile, "Time in the Apply_material %lld millisecond(s).\n", elapsed.count());
+  std::cout << "Time in Apply_material " << elapsed.count() << " millisecond(s)." << std::endl;
+  // printf(" Check the method\n");
+  // el_not_handle = CheckTemplate(&mesh, coords, element_ids ,true);
+  // do the pillow
+  start = std::chrono::steady_clock::now();
+  printf(" Applying pillowing process\n\n");
+  PillowingInterface(&mesh, coords, nodes_b_mat);
+  elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
+  fprintf(mesh.profile, "Time in the PillowingInterface %lld millisecond(s).\n", elapsed.count());
+  std::cout << "Time in PillowingInterface " << elapsed.count() << " millisecond(s)." << std::endl;
 
-  printf(" Apply 27-tree templates\n");
-  ApplyOctreeTemplate(&mesh, coords, element_ids);
-   */
+  // // opt mesh
+  // start = std::chrono::steady_clock::now();
+  // printf(" Mesh Optimization\n\n");
+  // // MeshOptimization(&mesh, coords, nodes_b_mat);
+  // elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
+  // fprintf(mesh.profile, "Time in the MeshOptimization %lld millisecond(s).\n", elapsed.count());
+  // std::cout << "Time in MeshOptimization " << elapsed.count() << " millisecond(s)." << std::endl;
 
-  // element_ids.clear();
-  // GetInterceptedElements(&mesh, coords, element_ids, bathy);
-  // printf(" Elements intercepted: %lld\n\n", element_ids.size());
-
-//  printf(" Project nodes to the surface\n\n");
-//  MovingNodes(&mesh,coords, nodes_b_mat,bathy);
-
-  // printf(" Applying material \n\n");
-  // element_ids.clear();
-  // Apply_material(&mesh, coords, element_ids, bathy);
-
-  //printf(" Untangle meshes\n\n");
-  //UntagleMesh(&mesh, coords, nodes_b_mat);
-
-  //printf(" Optimization of the mesh\n\n");
-  // MeshOpt(&mesh,coords,nodes_b_mat);
-
+  start = std::chrono::steady_clock::now();
   printf(" Extrude elements\n\n");
-  ExtrudePMLElements(&mesh,coords);
-  Adjust_material(&mesh);
-
-  //clean vectors
-  std::vector<int>().swap(element_ids);
-  std::vector<int>().swap(nodes_b_mat);
+  ExtrudePMLElements(&mesh, coords);
+  elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
+  fprintf(mesh.profile, "Time in the ExtrudePMLElements %lld millisecond(s).\n", elapsed.count());
+  std::cout << "Time in ExtrudePMLElements " << elapsed.count() << " millisecond(s)." << std::endl;
 
   printf(" Writing output files \n\n");
-  //hexa_mesh_write_vtk(&mesh, "mesh", &coords);
-  //hexa_mesh_write_msh(&mesh, "mesh", &coords);
-  hexa_mesh_write_h5(&mesh,outmesh,coords);
-  //hexa_mesh_write_vtk(&mesh, "test",NULL);
+  hexa_mesh_write_h5(&mesh, outmesh, coords);
+  elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
+  fprintf(mesh.profile, "Time in Writing output files %lld millisecond(s).\n", elapsed.count());
+  std::cout << "Time in Writing output files " << elapsed.count() << " millisecond(s)." << std::endl;
 
+  start = std::chrono::steady_clock::now();
   printf(" Cleaning variables \n\n");
 
-  hexa_mesh_destroy(&mesh);
   hexa_tree_destroy(&mesh);
   hexa_finalize(&mesh);
-  //std::vector<double>().swap(coords);
+  std::vector<double>().swap(coords);
+  elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
+  fprintf(mesh.profile, "Time in the Cleaning variables %lld millisecond(s).\n", elapsed.count());
+  std::cout << "Time in Cleaning variables " << elapsed.count() << " millisecond(s)." << std::endl;
 
   return 0;
 }

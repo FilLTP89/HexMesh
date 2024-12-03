@@ -26,10 +26,6 @@ void GetInterceptedElements(hexa_tree_t *mesh, std::vector<double> &coords, std:
 void CheckOctreeTemplate(hexa_tree_t *mesh, const std::vector<double> &coords, std::vector<int> &elements_ids, bool flag);
 void ApplyOctreeTemplate(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> &elements_ids);
 
-// void ChangeTemplate(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& elements_ids);
-// void ApplyTemplate(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& elements_ids);
-// void Move_nodes(hexa_tree_t* tree, const char* surface_bathy, std::vector<double>& coords, std::vector<int>& element_ids);
-
 int CheckTemplate(hexa_tree_t *mesh, const std::vector<double> &coords, std::vector<int> &elements_ids, bool flag);
 void CutTemplate(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> &elements_ids);
 
@@ -107,8 +103,7 @@ int main(int argc, char *argv[])
   elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
   fprintf(mesh.profile, "Time in the Apply_material %lld millisecond(s).\n", elapsed.count());
   std::cout << "Time in Apply_material " << elapsed.count() << " millisecond(s)." << std::endl;
-  // printf(" Check the method\n");
-  // el_not_handle = CheckTemplate(&mesh, coords, element_ids ,true);
+  
   // do the pillow
   start = std::chrono::steady_clock::now();
   printf(" Applying pillowing process\n\n");
@@ -117,36 +112,7 @@ int main(int argc, char *argv[])
   fprintf(mesh.profile, "Time in the PillowingInterface %lld millisecond(s).\n", elapsed.count());
   std::cout << "Time in PillowingInterface " << elapsed.count() << " millisecond(s)." << std::endl;
 
-  // if(el_not_handle == 0){
-  // printf("Cut templates\n");
-  // CutTemplate(&mesh, coords, element_ids);
-  // }else{
-
-  /*
-  printf(" Check and propagate 27-tree templates\n");
-  CheckOctreeTemplate(&mesh, coords, element_ids, true);
-
-  printf(" Apply 27-tree templates\n");
-  ApplyOctreeTemplate(&mesh, coords, element_ids);
-   */
-
-  // element_ids.clear();
-  // GetInterceptedElements(&mesh, coords, element_ids, bathy);
-  // printf(" Elements intercepted: %lld\n\n", element_ids.size());
-
-  //  printf(" Project nodes to the surface\n\n");
-  //  MovingNodes(&mesh,coords, nodes_b_mat,bathy);
-
-  printf(" Applying material \n\n");
   element_ids.clear();
-  // Apply_material(&mesh, coords, element_ids, bathy);
-  // }
-
-  // printf(" Untangle meshes\n\n");
-  // UntagleMesh(&mesh, coords, nodes_b_mat);
-
-  // printf(" Optimization of the mesh\n\n");
-  //  MeshOpt(&mesh,coords,nodes_b_mat);
 
   start = std::chrono::steady_clock::now();
   printf(" Extrude elements\n\n");
