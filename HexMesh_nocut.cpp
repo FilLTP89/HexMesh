@@ -22,7 +22,7 @@
 #include <chrono>
 
 void GetMeshFromSurface(hexa_tree_t *tree, const char *surface_topo, std::vector<double> &coords);
-void GetInterceptedElements(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> &elements_ids, const char *surface_bathy);
+// void GetInterceptedElements(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> &elements_ids, const char *surface_bathy);
 void CheckOctreeTemplate(hexa_tree_t *mesh, const std::vector<double> &coords, std::vector<int> &elements_ids, bool flag);
 void ApplyOctreeTemplate(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> &elements_ids);
 
@@ -35,7 +35,7 @@ void Adjust_material(hexa_tree_t *mesh);
 void ExtrudePMLElements(hexa_tree_t *mesh, std::vector<double> &coords);
 
 void IdentifyTemplate(hexa_tree_t *mesh, const std::vector<double> &coords, std::vector<int> &elements_ids);
-void MovingNodes(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> &nodes_b_mat, const char *surface);
+void MovingNodesNew(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> &nodes_b_mat);
 void MeshOpt(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> material_fixed_nodes);
 void UntagleMesh(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> material_fixed_nodes);
 
@@ -64,10 +64,10 @@ int main(int argc, char *argv[])
   fprintf(mesh.profile, "Time in the initialization %lld millisecond(s).\n", elapsed.count());
   std::cout << "Time in the initialization " << elapsed.count() << " millisecond(s)." << std::endl;
 
-  const char *bathy = argv[2];
-  const char *topo = argv[3];
-  const char *outmesh = argv[4];
-  printf("Loading files:\n \t %s \n \t %s \n", bathy, topo);
+  // const char *bathy = argv[2];
+  const char *topo = argv[2];
+  const char *outmesh = argv[3];
+  printf("Loading files: \n \t %s \n", topo);
 
   start = std::chrono::steady_clock::now();
   // Note that here we use a gts file.
@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
   // apply a deformation in the mesh to fit the bathy
   start = std::chrono::steady_clock::now();
   printf(" Project nodes to the surface\n\n");
-  MovingNodes(&mesh, coords, nodes_b_mat, bathy);
+  MovingNodesNew(&mesh, coords, nodes_b_mat);
   elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
   fprintf(mesh.profile, "Time in the MovingNodes %lld millisecond(s).\n", elapsed.count());
   std::cout << "Time in MovingNodes " << elapsed.count() << " millisecond(s)." << std::endl;
