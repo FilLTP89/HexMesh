@@ -2893,7 +2893,7 @@ void ExtrudePMLElements(hexa_tree_t *mesh, std::vector<double> &coords)
 
 	// material.input file 2 SEM3D
 	FILE *fp1;
-	fp1 = fopen("material.input.FromHexMesh", "w");
+	fp1 = fopen("material.input", "w");
 	if (fp1 == NULL)
 	{
 		printf("Error opening material.input file\n");
