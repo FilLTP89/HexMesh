@@ -418,6 +418,7 @@ void hexa_init(int argc, char *argv[], hexa_tree_t *mesh);
 void hexa_finalize(hexa_tree_t *mesh);
 void hexa_tree_init(hexa_tree_t *mesh, int max_levels);
 void hexa_tree_destroy(hexa_tree_t *mesh);
+void hexa_tree_destroy_nocut(hexa_tree_t *mesh);
 void hexa_tree_cube(hexa_tree_t *mesh);
 int hexa_tree_write_vtk(hexa_tree_t *mesh, const char *filename);
 void hexa_transition_element(hexa_tree_t *mesh, int i, int j, int k, int step, int level, int ext);
@@ -428,6 +429,7 @@ void GetInterceptedElements(hexa_tree_t *mesh, std::vector<double> &coords, std:
 void Apply_material(hexa_tree_t *mesh, std::vector<double> &coords, const char *surface_bathy);
 void ExtrudePMLElements(hexa_tree_t *mesh, std::vector<double> &coords);
 void MovingNodes(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> &nodes_b_mat, const char *surface);
+void MovingNodesNew(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> &nodes_b_mat, const char *surface);
 void MeshOpt(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> material_fixed_nodes);
 void PillowingInterface(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> &nodes_b_mat);
 void Adjust_material(hexa_tree_t *mesh);

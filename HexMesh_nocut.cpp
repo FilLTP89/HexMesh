@@ -80,12 +80,12 @@ int main(int argc, char *argv[])
   std::cout << "Time in the GetMeshFromSurface " << elapsed.count() << " millisecond(s)." << std::endl;
 
   // find the elements intercepted by the bathy
-  start = std::chrono::steady_clock::now();
+  // start = std::chrono::steady_clock::now();
   //GetInterceptedElements(&mesh, coords, element_ids, bathy);
   //printf(" Elements intercepted: %lld\n\n", element_ids.size());
-  elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
-  fprintf(mesh.profile, "Time in the GetInterceptedElements %lld millisecond(s).\n", elapsed.count());
-  std::cout << "Time in GetInterceptedElements " << elapsed.count() << " millisecondsecond(s)." << std::endl;
+  // elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
+  // fprintf(mesh.profile, "Time in the GetInterceptedElements %lld millisecond(s).\n", elapsed.count());
+  // std::cout << "Time in GetInterceptedElements " << elapsed.count() << " millisecondsecond(s)." << std::endl;
 
   // apply a deformation in the mesh to fit the bathy
   start = std::chrono::steady_clock::now();
@@ -136,7 +136,7 @@ int main(int argc, char *argv[])
   start = std::chrono::steady_clock::now();
   printf(" Cleaning variables \n\n");
 
-  hexa_tree_destroy(&mesh);
+  hexa_tree_destroy_nocut(&mesh);
   hexa_finalize(&mesh);
   std::vector<double>().swap(coords);
   elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);

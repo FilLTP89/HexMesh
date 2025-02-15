@@ -274,3 +274,20 @@ void hexa_tree_destroy(hexa_tree_t* mesh)
 	if(mesh->gdata.bbt!=NULL) gts_bb_tree_destroy(mesh->gdata.bbt, TRUE);
 
 }
+
+void hexa_tree_destroy_nocut(hexa_tree_t *mesh)
+{
+
+	if (mesh->global_id != NULL)
+		free(mesh->global_id);
+	if (mesh->part_nodes != NULL)
+		free(mesh->part_nodes);
+
+	sc_array_reset(&mesh->elements);
+	sc_array_reset(&mesh->comm_map.RecvFrom);
+	sc_array_reset(&mesh->comm_map.SendTo);
+	sc_array_reset(&mesh->nodes);
+	// sc_array_reset(&mesh->vertex);
+	sc_array_reset(&mesh->oct);
+	sc_array_reset(&mesh->shared_nodes);
+}
