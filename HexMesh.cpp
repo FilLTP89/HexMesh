@@ -20,23 +20,6 @@
 #include <ctime>
 #include <chrono>
 
-// void GetMeshFromSurface(hexa_tree_t *tree, const char *surface_topo, std::vector<double> &coords);
-// void GetInterceptedElements(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> &elements_ids, const char *surface_bathy);
-// void CheckOctreeTemplate(hexa_tree_t *mesh, const std::vector<double> &coords, std::vector<int> &elements_ids, bool flag);
-// void ApplyOctreeTemplate(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> &elements_ids);
-// int CheckTemplate(hexa_tree_t *mesh, const std::vector<double> &coords, std::vector<int> &elements_ids, bool flag);
-// void CutTemplate(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> &elements_ids);
-
-// void Apply_material(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> &element_ids, const char *surface_bathy);
-// void Adjust_material(hexa_tree_t *mesh);
-// // void AddPMLElements(hexa_tree_t* mesh);
-// void ExtrudePMLElements(hexa_tree_t *mesh, std::vector<double> &coords);
-
-// void IdentifyTemplate(hexa_tree_t *mesh, const std::vector<double> &coords, std::vector<int> &elements_ids);
-// void MovingNodes(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> &nodes_b_mat, const char *surface);
-// void MeshOpt(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> material_fixed_nodes);
-// void UntagleMesh(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> material_fixed_nodes);
-
 int main(int argc, char *argv[])
 {
 
@@ -101,9 +84,8 @@ int main(int argc, char *argv[])
   elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
   fprintf(mesh.profile, "Time in the Apply_material %lld millisecond(s).\n", elapsed.count());
   std::cout << "Time in Apply_material " << elapsed.count() << " millisecond(s)." << std::endl;
-  // printf(" Check the method\n");
-  // el_not_handle = CheckTemplate(&mesh, coords, element_ids ,true);
-  // do the pillow
+
+  // pillowing
   start = std::chrono::steady_clock::now();
   printf(" Applying pillowing process\n\n");
   PillowingInterface(&mesh, coords, nodes_b_mat);
