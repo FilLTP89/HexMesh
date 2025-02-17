@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
   // apply a deformation in the mesh to fit the bathy
   start = std::chrono::steady_clock::now();
   printf(" Project nodes to the surface\n\n");
-  MovingNodesNew(&mesh, coords, nodes_b_mat);
+  MovingNodes(&mesh, coords, nodes_b_mat);
   elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
   fprintf(mesh.profile, "Time in the MovingNodes %lld millisecond(s).\n", elapsed.count());
   std::cout << "Time in MovingNodes " << elapsed.count() << " millisecond(s)." << std::endl;

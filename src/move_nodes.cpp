@@ -1366,7 +1366,8 @@ void DoOctree(hexa_tree_t* mesh){
 	}
 }
 
-void MovingNodesNew(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& nodes_b_mat) {
+
+void MovingNodes(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& nodes_b_mat) {
 
 	bool deb = false;
 
@@ -1384,133 +1385,41 @@ void MovingNodesNew(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<
 	tend = time(0);
 	//cout << "Time in IdentifyMovableNodes "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
-	if(deb){
-		char fdname[80];
-		sprintf(fdname,"free_node_%04d.txt", mesh->mpi_rank);
-		FILE* fnode = fopen(fdname,"w");
-		for(int ino = 0; ino < mesh->nodes.elem_count; ino ++){
-			octant_node_t* node = (octant_node_t*) sc_array_index (&mesh->nodes, ino);
-			if(node->fixed==0){
-				int nnode = 3*node->id;
-				fprintf(fnode,"%f %f %f\n",coords[nnode+0],coords[nnode+1],coords[nnode+2]);
-			}
-		}
-		fclose(fnode);
-	}
+	// if(deb){
+	// 	char fdname[80];
+	// 	sprintf(fdname,"free_node_%04d.txt", mesh->mpi_rank);
+	// 	FILE* fnode = fopen(fdname,"w");
+	// 	for(int ino = 0; ino < mesh->nodes.elem_count; ino ++){
+	// 		octant_node_t* node = (octant_node_t*) sc_array_index (&mesh->nodes, ino);
+	// 		if(node->fixed==0){
+	// 			int nnode = 3*node->id;
+	// 			fprintf(fnode,"%f %f %f\n",coords[nnode+0],coords[nnode+1],coords[nnode+2]);
+	// 		}
+	// 	}
+	// 	fclose(fnode);
+	// }
 
-	if(deb){
-		char fdname[80];
-		sprintf(fdname,"debug_edges_%04d.txt", mesh->mpi_rank);
-		FILE* dedges = fopen(fdname,"w");
-		for(int ioc = 0; ioc < mesh->oct.elem_count; ioc ++){
-			octree_t* oct = (octree_t*) sc_array_index (&mesh->oct, ioc);
-			for(int iel = 0; iel < 8; iel++){
-				if(oct->id[iel] !=-1){
-					octant_t* elem = (octant_t*) sc_array_index (&mesh->nodes, oct->id[iel]);
-					//printf("%s\n", oct->edge[0] ? "true" : "false")
-					fprintf(dedges,"El %d\n", oct->id[iel]);
-					for(int iedge = 0; iedge < 12;iedge++){
-						fprintf(dedges,"%s ", elem->edge[iedge].ref ? "T" : "F");
-					}
-					fprintf(dedges,"\n");
-				}
-			}
+	// if(deb){
+	// 	char fdname[80];
+	// 	sprintf(fdname,"debug_edges_%04d.txt", mesh->mpi_rank);
+	// 	FILE* dedges = fopen(fdname,"w");
+	// 	for(int ioc = 0; ioc < mesh->oct.elem_count; ioc ++){
+	// 		octree_t* oct = (octree_t*) sc_array_index (&mesh->oct, ioc);
+	// 		for(int iel = 0; iel < 8; iel++){
+	// 			if(oct->id[iel] !=-1){
+	// 				octant_t* elem = (octant_t*) sc_array_index (&mesh->nodes, oct->id[iel]);
+	// 				//printf("%s\n", oct->edge[0] ? "true" : "false")
+	// 				fprintf(dedges,"El %d\n", oct->id[iel]);
+	// 				for(int iedge = 0; iedge < 12;iedge++){
+	// 					fprintf(dedges,"%s ", elem->edge[iedge].ref ? "T" : "F");
+	// 				}
+	// 				fprintf(dedges,"\n");
+	// 			}
+	// 		}
 
-		}
-		fclose(dedges);
-	}
-
-	tstart = time(0);
-	printf("    Make the projection of the nodes into the surface...\n");
-	nodes_b_mat.clear();
-	ProjectFreeNodes(mesh,coords,nodes_b_mat);
-	tend = time(0);
-	//cout << "Time in ProjectFreeNodes "<< difftime(tend, tstart) <<" second(s)."<< endl;
-
-	if(deb){
-		int8_t* flag_nodes = (int8_t*) malloc(sizeof (int8_t) * mesh->local_n_nodes);
-		memset(flag_nodes, 0, sizeof (int8_t) * mesh->local_n_nodes);
-
-		for (int i = 0; i < mesh->local_n_nodes; i++) {
-			flag_nodes[i]=0;
-		}
-
-		//verifica a criacao os nos livres e fixos na criacao dos octrees
-
-		//std::cout <<  mesh->elements.elem_count << " coisinhas para mover" << std::endl;
-		for (int iel = 0; iel < mesh->elements.elem_count; ++iel) {
-			octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, iel);
-			for(int ino = 0; ino<8;ino++){
-				if(flag_nodes[elem->nodes[ino].id]==2){
-
-				}else{
-					flag_nodes[elem->nodes[ino].id] = elem->nodes[ino].fixed;
-				}
-			}
-		}
-		for (int i = 0; i < mesh->local_n_nodes; i++) {
-			mesh->part_nodes[i] = flag_nodes[i];
-		}
-		free(flag_nodes);
-		for(int i = 0; i<nodes_b_mat.size();i++){
-			mesh->part_nodes[nodes_b_mat[i]] = 1;
-		}
-	}
-}
-
-void MovingNodes(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int>& nodes_b_mat, const char* surface) {
-
-	bool deb = false;
-
-	time_t tstart, tend;
-
-	tstart = time(0);
-	printf("    Building the octree structure...\n");
-	DoOctree(mesh);
-	tend = time(0);
-	//	cout << "Time in DoOctree "<< difftime(tend, tstart) <<" second(s)."<< endl;
-
-	tstart = time(0);
-	printf("    Identifying the movable nodes...\n");
-	IdentifyMovableNodes(mesh);
-	tend = time(0);
-	//cout << "Time in IdentifyMovableNodes "<< difftime(tend, tstart) <<" second(s)."<< endl;
-
-	if(deb){
-		char fdname[80];
-		sprintf(fdname,"free_node_%04d.txt", mesh->mpi_rank);
-		FILE* fnode = fopen(fdname,"w");
-		for(int ino = 0; ino < mesh->nodes.elem_count; ino ++){
-			octant_node_t* node = (octant_node_t*) sc_array_index (&mesh->nodes, ino);
-			if(node->fixed==0){
-				int nnode = 3*node->id;
-				fprintf(fnode,"%f %f %f\n",coords[nnode+0],coords[nnode+1],coords[nnode+2]);
-			}
-		}
-		fclose(fnode);
-	}
-
-	if(deb){
-		char fdname[80];
-		sprintf(fdname,"debug_edges_%04d.txt", mesh->mpi_rank);
-		FILE* dedges = fopen(fdname,"w");
-		for(int ioc = 0; ioc < mesh->oct.elem_count; ioc ++){
-			octree_t* oct = (octree_t*) sc_array_index (&mesh->oct, ioc);
-			for(int iel = 0; iel < 8; iel++){
-				if(oct->id[iel] !=-1){
-					octant_t* elem = (octant_t*) sc_array_index (&mesh->nodes, oct->id[iel]);
-					//printf("%s\n", oct->edge[0] ? "true" : "false")
-					fprintf(dedges,"El %d\n", oct->id[iel]);
-					for(int iedge = 0; iedge < 12;iedge++){
-						fprintf(dedges,"%s ", elem->edge[iedge].ref ? "T" : "F");
-					}
-					fprintf(dedges,"\n");
-				}
-			}
-
-		}
-		fclose(dedges);
-	}
+	// 	}
+	// 	fclose(dedges);
+	// }
 
 	tstart = time(0);
 	printf("    Make the projection of the nodes into the surface...\n");
@@ -1519,33 +1428,33 @@ void MovingNodes(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int
 	tend = time(0);
 	//cout << "Time in ProjectFreeNodes "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
-	if(deb){
-		int8_t* flag_nodes = (int8_t*) malloc(sizeof (int8_t) * mesh->local_n_nodes);
-		memset(flag_nodes, 0, sizeof (int8_t) * mesh->local_n_nodes);
+	// if(deb){
+	// 	int8_t* flag_nodes = (int8_t*) malloc(sizeof (int8_t) * mesh->local_n_nodes);
+	// 	memset(flag_nodes, 0, sizeof (int8_t) * mesh->local_n_nodes);
 
-		for (int i = 0; i < mesh->local_n_nodes; i++) {
-			flag_nodes[i]=0;
-		}
+	// 	for (int i = 0; i < mesh->local_n_nodes; i++) {
+	// 		flag_nodes[i]=0;
+	// 	}
 
-		//verifica a criacao os nos livres e fixos na criacao dos octrees
+	// 	//verifica a criacao os nos livres e fixos na criacao dos octrees
 
-		//std::cout <<  mesh->elements.elem_count << " coisinhas para mover" << std::endl;
-		for (int iel = 0; iel < mesh->elements.elem_count; ++iel) {
-			octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, iel);
-			for(int ino = 0; ino<8;ino++){
-				if(flag_nodes[elem->nodes[ino].id]==2){
+	// 	//std::cout <<  mesh->elements.elem_count << " coisinhas para mover" << std::endl;
+	// 	for (int iel = 0; iel < mesh->elements.elem_count; ++iel) {
+	// 		octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, iel);
+	// 		for(int ino = 0; ino<8;ino++){
+	// 			if(flag_nodes[elem->nodes[ino].id]==2){
 
-				}else{
-					flag_nodes[elem->nodes[ino].id] = elem->nodes[ino].fixed;
-				}
-			}
-		}
-		for (int i = 0; i < mesh->local_n_nodes; i++) {
-			mesh->part_nodes[i] = flag_nodes[i];
-		}
-		free(flag_nodes);
-		for(int i = 0; i<nodes_b_mat.size();i++){
-			mesh->part_nodes[nodes_b_mat[i]] = 1;
-		}
-	}
+	// 			}else{
+	// 				flag_nodes[elem->nodes[ino].id] = elem->nodes[ino].fixed;
+	// 			}
+	// 		}
+	// 	}
+	// 	for (int i = 0; i < mesh->local_n_nodes; i++) {
+	// 		mesh->part_nodes[i] = flag_nodes[i];
+	// 	}
+	// 	free(flag_nodes);
+	// 	for(int i = 0; i<nodes_b_mat.size();i++){
+	// 		mesh->part_nodes[nodes_b_mat[i]] = 1;
+	// 	}
+	// }
 }
