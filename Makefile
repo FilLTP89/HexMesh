@@ -6,11 +6,9 @@
 # defined
 #
 # source files
-srcfilesnocut 	:= $(wildcard src/*.cpp) HexMesh_nocut.cpp
 srcfiles 	:= $(wildcard src/*.cpp) HexMesh.cpp
 #
 # object files
-objects_nocut		:= $(patsubst %.cpp, %.o, $(srcfilesnocut))
 objects		:= $(patsubst %.cpp, %.o, $(srcfiles))
 #################################################################################
 
@@ -34,30 +32,9 @@ CXX       = mpicxx.openmpi -O1 -g -std=c++11
 LDFLAGS   = -L$(GTS_DIR)/lib -lgts -L$(SC_DIR)/lib -lsc -lm -lglib-2.0 $(H5_FLAG) -L$(MSQ_LIB) $(MSQ_LIB)/libmesquite.so 
 CXX_FLAGS = -I$(GTS_DIR)/include -I$(SC_DIR)/include $(GLIB_INCLUDE) $(MSQ_INCLUDE) -Iinclude $(H5_INCLUDE) 
 
-## Target: all
-# all: hexmesh_nocut.exe
+# Target: all
 
-
-# hexmesh_nocut.exe: $(objects_nocut)
-# 	$(CXX) $(objects_nocut) -o hexmesh_nocut.exe $(LDFLAGS)
-
-# %.o : %.cpp
-# 	@echo "Compiling C++ "$<"..."
-# 	$(CXX) $(CXX_FLAGS) -c $< -o $@
-
-
-nocut: hexmesh_nocut.exe
-
-
-hexmesh_nocut.exe: $(objects_nocut)
-	$(CXX) $(objects_nocut) -o hexmesh_nocut.exe -g $(LDFLAGS)
-
-%.o : %.cpp
-	@echo "Compiling C++ "$<"..."
-	$(CXX) $(CXX_FLAGS) -c $< -o $@
-
-
-cut: hexmesh.exe
+all: hexmesh.exe
 
 
 hexmesh.exe: $(objects)
@@ -70,7 +47,7 @@ hexmesh.exe: $(objects)
 
 #### Clean target deletes all generated files ####
 clean: 
-	rm $(objects) $(objects_nocut)
+	rm $(objects) hexmesh.exe
 
 
 # Enable dependency checking
