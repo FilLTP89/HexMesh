@@ -1424,7 +1424,7 @@ void MovingNodes(hexa_tree_t* mesh, std::vector<double>& coords, std::vector<int
 	tstart = time(0);
 	printf("    Make the projection of the nodes into the surface...\n");
 	nodes_b_mat.clear();
-	ProjectFreeNodes(mesh,coords,nodes_b_mat);
+	// ProjectFreeNodes(mesh,coords,nodes_b_mat);
 	tend = time(0);
 	//cout << "Time in ProjectFreeNodes "<< difftime(tend, tstart) <<" second(s)."<< endl;
 
