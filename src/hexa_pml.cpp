@@ -111,9 +111,9 @@ void ExtrudePMLElements(hexa_tree_t *mesh, std::vector<double> &coords)
 	const double Y_pml = 10e3;
 	const double Z_pml = 10e3;
 
-	const int layers_x = 2;
-	const int layers_y = 2;
-	const int layers_z = 2;
+	const int layers_x = 3;
+	const int layers_y = 3;
+	const int layers_z = 3;
 
 	// material.input file 2 SEM3D
 	// FILE *fp;
@@ -2888,8 +2888,8 @@ void ExtrudePMLElements(hexa_tree_t *mesh, std::vector<double> &coords)
 
 	double vp, vs, rho;
 	vp = 6300;
-	vs = 2300;
-	rho = 5000;
+	vs = 4762;
+	rho = 2000;
 	tot_n_mat++;
 	fprintf(fp1, "%d\n", tot_n_mat+hash_matpml->a.elem_count);
 	for(int imat = 0; imat < tot_n_mat; imat++){
