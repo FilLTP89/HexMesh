@@ -1,9 +1,6 @@
 ## -*- Makefile -*-
 ##
 ###############################################################################
-# set LD_LIBRARY_PATH $LD_LIBRARY_PATH:/home/kltpk89/Data/Filippo/mesquite/src:/home/kltpk89/Data/Filippo/libsc/local/lib
-# File management.  This is where the source, header, and object files are
-# defined
 #
 # source files
 srcfiles 	:= $(wildcard src/*.cpp) HexMesh.cpp

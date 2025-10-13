@@ -47,14 +47,9 @@ int main(int argc, char *argv[])
   
   const char *topo = argv[2];
   const char *outmesh = argv[3];
-  const char *bathy = nullptr; // Declare in outer scope
-  if (argc > 4){
-    bathy = argv[4];
-    printf("Loading files:\n \t %s \n \t %s \n", bathy, topo);
-  } else {
-    printf("Loading files:\n \t %s \n", topo);
-  }
-
+  const char *bathy = argv[4]; 
+  printf("Loading files:\n \t %s \n \t %s \n", bathy, topo);
+  
   start = std::chrono::steady_clock::now();
   // Note that here we use a gts file.
   // There is a tool called stl2gts that convert STL files to GTS.
@@ -65,23 +60,22 @@ int main(int argc, char *argv[])
   fprintf(mesh.profile, "Time in the GetMeshFromSurface %lld millisecond(s).\n", elapsed.count());
   std::cout << "Time in the GetMeshFromSurface " << elapsed.count() << " millisecond(s)." << std::endl;
 
-  if (bathy) {
-    // find the elements intercepted by the bathy
-    start = std::chrono::steady_clock::now();
-    GetInterceptedElements(&mesh, coords, element_ids, bathy);
-    printf(" Elements intercepted: %lld\n\n", element_ids.size());
-    elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
-    fprintf(mesh.profile, "Time in the GetInterceptedElements %lld millisecond(s).\n", elapsed.count());
-    std::cout << "Time in GetInterceptedElements " << elapsed.count() << " millisecondsecond(s)." << std::endl;
-
-    // apply a deformation in the mesh to fit the bathy
-    start = std::chrono::steady_clock::now();
-    printf(" Project nodes to the surface\n\n");
-    MovingNodes(&mesh, coords, nodes_b_mat);
-    elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
-    fprintf(mesh.profile, "Time in the MovingNodes %lld millisecond(s).\n", elapsed.count());
-    std::cout << "Time in MovingNodes " << elapsed.count() << " millisecond(s)." << std::endl;
-
+  // find the elements intercepted by the bathy
+  start = std::chrono::steady_clock::now();
+  GetInterceptedElements(&mesh, coords, element_ids, bathy);
+  printf(" Elements intercepted: %lld\n\n", element_ids.size());
+  elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
+  fprintf(mesh.profile, "Time in the GetInterceptedElements %lld millisecond(s).\n", elapsed.count());
+  std::cout << "Time in GetInterceptedElements " << elapsed.count() << " millisecondsecond(s)." << std::endl; 
+  
+  // apply a deformation in the mesh to fit the bathy
+  start = std::chrono::steady_clock::now();
+  printf(" Project nodes to the surface\n\n");
+  MovingNodes(&mesh, coords, nodes_b_mat);
+  elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
+  fprintf(mesh.profile, "Time in the MovingNodes %lld millisecond(s).\n", elapsed.count());
+  std::cout << "Time in MovingNodes " << elapsed.count() << " millisecond(s)." << std::endl;
+  
   // apply material
   start = std::chrono::steady_clock::now();
   printf(" Applying material \n\n");
@@ -91,14 +85,14 @@ int main(int argc, char *argv[])
   fprintf(mesh.profile, "Time in the Apply_material %lld millisecond(s).\n", elapsed.count());
   std::cout << "Time in Apply_material " << elapsed.count() << " millisecond(s)." << std::endl;
 
-    // pillowing
-    start = std::chrono::steady_clock::now();
-    printf(" Applying pillowing process\n\n");
-    PillowingInterface(&mesh, coords, nodes_b_mat);
-    elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
-    fprintf(mesh.profile, "Time in the PillowingInterface %lld millisecond(s).\n", elapsed.count());
-    std::cout << "Time in PillowingInterface " << elapsed.count() << " millisecond(s)." << std::endl;
-  }
+  // pillowing
+  start = std::chrono::steady_clock::now();
+  printf(" Applying pillowing process\n\n");
+  PillowingInterface(&mesh, coords, nodes_b_mat);
+  elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
+  fprintf(mesh.profile, "Time in the PillowingInterface %lld millisecond(s).\n", elapsed.count());
+  std::cout << "Time in PillowingInterface " << elapsed.count() << " millisecond(s)." << std::endl;
+  
   // // opt mesh
   // start = std::chrono::steady_clock::now();
   // printf(" Mesh Optimization\n\n");
