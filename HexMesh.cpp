@@ -82,14 +82,14 @@ int main(int argc, char *argv[])
     fprintf(mesh.profile, "Time in the MovingNodes %lld millisecond(s).\n", elapsed.count());
     std::cout << "Time in MovingNodes " << elapsed.count() << " millisecond(s)." << std::endl;
 
-    // apply material
-    start = std::chrono::steady_clock::now();
-    printf(" Applying material \n\n");
-    element_ids.clear();
-    Apply_material(&mesh, coords, bathy);
-    elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
-    fprintf(mesh.profile, "Time in the Apply_material %lld millisecond(s).\n", elapsed.count());
-    std::cout << "Time in Apply_material " << elapsed.count() << " millisecond(s)." << std::endl;
+  // apply material
+  start = std::chrono::steady_clock::now();
+  printf(" Applying material \n\n");
+  element_ids.clear();
+  Apply_material(&mesh, coords);
+  elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
+  fprintf(mesh.profile, "Time in the Apply_material %lld millisecond(s).\n", elapsed.count());
+  std::cout << "Time in Apply_material " << elapsed.count() << " millisecond(s)." << std::endl;
 
     // pillowing
     start = std::chrono::steady_clock::now();

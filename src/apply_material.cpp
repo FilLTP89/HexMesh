@@ -93,7 +93,7 @@ void Adjust_material(hexa_tree_t *mesh) {
 }
 
 
-void Apply_material(hexa_tree_t *mesh, std::vector<double>& coords, const char* surface_bathy) {
+void Apply_material(hexa_tree_t *mesh, std::vector<double>& coords) {
 
 	bool deb = false;
 	GtsBBox* bbox = mesh->gdata.bbox;
