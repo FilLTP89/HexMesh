@@ -104,16 +104,16 @@ void RedoMap(hexa_tree_t *mesh, int layers_x, int layers_y, int layers_z)
 	}
 }
 
-void ExtrudePMLElements(hexa_tree_t *mesh, std::vector<double> &coords)
+void ExtrudePMLElements(hexa_tree_t *mesh, std::vector<double> &coords, int n_pml_layers, double pml_length)
 {
 
-	const double X_pml = 10e3;
-	const double Y_pml = 10e3;
-	const double Z_pml = 10e3;
+	const double X_pml = pml_length;
+	const double Y_pml = pml_length;
+	const double Z_pml = pml_length;
 
-	const int layers_x = 3;
-	const int layers_y = 3;
-	const int layers_z = 3;
+	const int layers_x = n_pml_layers;
+	const int layers_y = n_pml_layers;
+	const int layers_z = n_pml_layers;
 
 	// material.input file 2 SEM3D
 	// FILE *fp;

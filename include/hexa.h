@@ -427,7 +427,7 @@ void hexa_mesh(hexa_tree_t *tree);
 void GetMeshFromSurface(hexa_tree_t *tree, const char *surface_topo, std::vector<double> &coords);
 void GetInterceptedElements(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> &elements_ids, const char *surface_bathy);
 void Apply_material(hexa_tree_t *mesh, std::vector<double> &coords);
-void ExtrudePMLElements(hexa_tree_t *mesh, std::vector<double> &coords);
+void ExtrudePMLElements(hexa_tree_t *mesh, std::vector<double> &coords, int n_pml_layers, double pml_length);
 void MovingNodes(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> &nodes_b_mat);
 void MeshOpt(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> material_fixed_nodes);
 void PillowingInterface(hexa_tree_t *mesh, std::vector<double> &coords, std::vector<int> &nodes_b_mat);
