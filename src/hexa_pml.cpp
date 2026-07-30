@@ -2878,40 +2878,21 @@ void ExtrudePMLElements(hexa_tree_t *mesh, std::vector<double> &coords, int n_pm
 	// fclose(fp);
 
 
-	// material.input file 2 SEM3D
-	FILE *fp1;
-	fp1 = fopen("material.input", "w");
-	if (fp1 == NULL)
-	{
-		printf("Error opening material.input file\n");
-	}
-
-	double vp, vs, rho;
-	vp = 6300;
-	vs = 4762;
-	rho = 2000;
-	tot_n_mat++;
-	fprintf(fp1, "%d\n", tot_n_mat+hash_matpml->a.elem_count);
-	for(int imat = 0; imat < tot_n_mat; imat++){
-		fprintf(fp1, "S %f %f %f %f %f\n",vp,vs,rho,0.0,0.0 );
-	}
-	for(int imat = 0; imat < hash_matpml->a.elem_count; imat++){
-		fprintf(fp1, "P %f %f %f %f %f\n",vp,vs,rho,0.0,0.0);
-	}
-	fprintf(fp1, "# PML properties\n");
-	fprintf(fp1, "# npow,Apow,posX,widthX,posY,widthY,posZ,widthZ,mat\n");
-
-	for(int imat = 0; imat < hash_matpml->a.elem_count; imat++){
-		pmlmat_t *pmlT = (pmlmat_t *)sc_array_index(&hash_matpml->a, imat);
-		double xx = pmlT->xmin;
-		double yy = pmlT->ymin;
-		double zz = pmlT->zmin;
-		double dx = pmlT->xmax - pmlT->xmin;
-		double dy = pmlT->ymax - pmlT->ymin;
-		double dz = pmlT->zmax - pmlT->zmin;
-		fprintf(fp1, "2 10.000000 %f %f %f %f %f %f %d\n",xx,dx,yy,dy,zz,dz,pmlT->matref+1);
-	}
-
-	fclose(fp1);
+	// material.input for SEM3D is no longer written here. This block used to
+	// hardcode vp=6300/vs=4762/rho=2000 (dry bedrock values) for every "S" and
+	// "P" line unconditionally -- including PML/core blocks that sit in the
+	// fluid/bathymetry domain, which should use water properties instead -- and
+	// wrote a fixed Apow=10.000000 with zero Qkappa/Qmu regardless of PML
+	// length or actual wave speeds. It produced a materially wrong
+	// material.input for any case with a fluid layer, and silently clobbered
+	// the correct one on every run.
+	//
+	// material.input is now generated from the mesh's .h5 output by pysem's
+	// create-material-input tool (pysem/src/pysem/create_material_input.py),
+	// which distinguishes solid vs fluid domains and computes Apow/Qkappa/Qmu
+	// from the real PML/reflection-coefficient and Vp/Vs physics. Run it after
+	// HexMesh finishes, e.g.:
+	//   create-material-input -i <outmesh>_0001_0000.h5 -o material.input -f \
+	//       --hexmesh-input HexMesh.input
 
 }
