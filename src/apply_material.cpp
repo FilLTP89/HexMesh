@@ -96,6 +96,29 @@ void Adjust_material(hexa_tree_t *mesh) {
 void Apply_material(hexa_tree_t *mesh, std::vector<double>& coords) {
 
 	bool deb = false;
+
+	if (mesh->gdata.bbt == NULL) {
+		// No bathymetry surface available (bathy not requested in
+		// HexMesh.input, or rejected as invalid by HexMesh.cpp's up-front
+		// check). mesh->gdata.bbt is only ever built by
+		// GetInterceptedElements() from the bathy surface (same NULL-checked
+		// field hexa_tree_destroy() already guards against; mesh->gdata.s is
+		// not reliably NULL here since `hexa_tree_t mesh;` isn't
+		// value-initialized). There is nothing to differentiate the domain
+		// against, so the whole mesh is one uniform solid "core" material
+		// (tag 0) -- skip the bathy-surface ray-casting below entirely
+		// instead of querying a NULL GTS tree. Left unguarded, every element
+		// silently defaulted to n_mat=1 (from the loop below), not 0 --
+		// breaking downstream tools (e.g. pysem's create_material_input)
+		// that expect the core material to be tag 0 when there is no
+		// fluid/bathymetry domain.
+		for (int iel = 0; iel < mesh->elements.elem_count; ++iel) {
+			octant_t *elem = (octant_t*) sc_array_index(&mesh->elements, iel);
+			elem->n_mat = 0;
+		}
+		return;
+	}
+
 	GtsBBox* bbox = mesh->gdata.bbox;
 
 	//for all the mesh

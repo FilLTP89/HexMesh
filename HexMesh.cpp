@@ -131,6 +131,24 @@ int main(int argc, char *argv[])
 {
 
   hexa_tree_t mesh;
+  // hexa_init()/hexa_tree_init() never touch mesh.gdata (only
+  // GetInterceptedElements() does, when a bathymetry cut actually runs), so
+  // it is otherwise left as uninitialized stack memory -- relying on it
+  // happening to read as NULL is undefined behavior (and was observed to
+  // vary: NULL in some runs, garbage in others, the latter segfaulting deep
+  // inside Apply_material's GTS ray-casting). Zero it explicitly so
+  // Apply_material's "no bathymetry available" check (mesh->gdata.bbt ==
+  // NULL) is always reliable, whether or not a bathymetry cut ran.
+  mesh.gdata.s = NULL;
+  mesh.gdata.bbt = NULL;
+  mesh.gdata.bbox = NULL;
+  // Likewise, mesh.outsurf is only ever sc_array_init()'d inside
+  // PillowingInterface() (skipped along with the rest of the bathymetry cut
+  // when there is no bathy), but ExtrudePMLElements()/RedoMap() iterate over
+  // it unconditionally afterwards -- an uninitialized sc_array_t has garbage
+  // elem_count/pointers, which segfaulted there. Start it as a valid empty
+  // array so that loop is a correct no-op when PillowingInterface never runs.
+  sc_array_init(&mesh.outsurf, sizeof(octant_t));
 
   std::vector<double> coords;
   std::vector<int> element_ids;
@@ -159,6 +177,28 @@ int main(int argc, char *argv[])
   int n_pml_layers = cfg.n_pml_layers;
   double pml_length = cfg.pml_length;
   const char *bathy = cfg.bathy.empty() ? nullptr : cfg.bathy.c_str();
+  if (bathy)
+  {
+    // Validate the bathymetry surface up front: SurfaceRead() returns NULL on
+    // a missing/unreadable/malformed GTS file, but returns a valid, non-NULL
+    // *empty* surface (zero faces) for a well-formed-but-content-free file
+    // (e.g. a genuinely empty/truncated GTS export) -- so a NULL check alone
+    // isn't enough. Either way, GetInterceptedElements() would then pass an
+    // unusable surface into gts_bbox_surface()/gts_bb_tree_surface(), which
+    // either assert on NULL or silently produce a NULL tree that every
+    // downstream ray-cast wastes time (and prints GTS-CRITICAL warnings)
+    // querying. Degrade to "no bathymetry cut" instead -- same as if `bathy`
+    // were simply absent from the config file -- rather than cutting the DEM
+    // with an unusable surface.
+    GtsSurface *bathy_check = SurfaceRead(bathy);
+    if (!bathy_check || gts_surface_face_number(bathy_check) == 0)
+    {
+      std::cerr << "Warning: bathy='" << bathy << "' could not be read as a valid, non-empty "
+                << "GTS surface (missing, empty, or malformed file); proceeding without a "
+                << "bathymetry cut." << std::endl;
+      bathy = nullptr;
+    }
+  }
   if (bathy)
   {
     printf("Loading files:\n \t %s \n \t %s \n", bathy, topo);
